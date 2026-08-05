@@ -30,7 +30,6 @@
 
   <div class="toolbar toolbar-secondary">
     <button class="btn btn-ghost" id="settingsBtn"><i class="fa-solid fa-gear"></i> Настройка панели</button>
-    <button class="btn btn-ghost" id="linkGenBtn"><i class="fa-solid fa-link"></i> Генерация ссылок</button>
     <button class="btn btn-ghost" id="crmFieldsBtn"><i class="fa-solid fa-address-card"></i> Поля для CRM</button>
     <button class="btn btn-ghost" id="sendExportBtn"><i class="fa-solid fa-paper-plane"></i> Выгрузить для отправки</button>
     <button class="btn btn-ghost" id="contractGenBtn"><i class="fa-solid fa-file-contract"></i> Генерация для договоров</button>
@@ -39,6 +38,7 @@
 
   <div id="bulkBar" class="bulk-bar" style="display:none">
     <span id="bulkCount"><i class="fa-solid fa-check-double"></i> Выбрано: 0</span>
+    <button class="btn btn-ghost" id="bulkEditBtn" style="color: var(--teal-dark); border-color: var(--teal); margin-right: 8px;"><i class="fa-solid fa-pen-to-square"></i> Массовое редактирование</button>
     <button class="btn btn-primary" id="exportXlsxBtn"><i class="fa-solid fa-file-excel"></i> Экспорт в Excel (выбранные)</button>
     <button class="btn btn-ghost" id="clearSelectionBtn"><i class="fa-solid fa-xmark"></i> Снять выделение</button>
   </div>

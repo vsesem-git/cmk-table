@@ -23,6 +23,9 @@
           <span class="accordion-arrow">▾</span>
         </button>
         <div class="accordion-body">
+          <div class="landing-subtitle"><i class="fa-solid fa-folder-open"></i> Загрузить сохранённый шаблон</div>
+          <select id="lp_templateSelect" style="width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px; margin-bottom: 12px; background: #fff;"></select>
+
           <div class="landing-subtitle"><i class="fa-solid fa-swatchbook"></i> Тема</div>
           <div class="landing-theme-grid" id="lp_themeGrid"></div>
 
@@ -43,7 +46,12 @@
           <div class="landing-subtitle"><i class="fa-solid fa-text-height"></i> Размер шрифтов</div>
           <div class="landing-sliders" id="lp_slidersGrid"></div>
 
-          <button type="button" class="btn btn-ghost" id="lp_saveDefaultBtn" style="margin-top:14px"><i class="fa-solid fa-floppy-disk"></i> Сохранить как шаблон по умолчанию</button>
+          <button type="button" class="btn btn-ghost" id="lp_saveDefaultBtn" style="margin-top:14px; margin-bottom: 8px;"><i class="fa-solid fa-floppy-disk"></i> Сохранить как шаблон по умолчанию</button>
+          
+          <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 12px;">
+            <input type="text" id="lp_newTemplateName" placeholder="Имя нового шаблона" style="flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px;">
+            <button type="button" class="btn btn-ghost" id="lp_saveNamedTemplateBtn"><i class="fa-solid fa-folder-plus"></i> Сохранить этот шаблон</button>
+          </div>
         </div>
       </div>
 
