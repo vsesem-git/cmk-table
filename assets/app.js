@@ -1422,7 +1422,7 @@
     saveSettings();
   });
 
-  ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingSupportSchedule', 'landingBrowserText', 'landingFooterText', 'landingTooltipRecording', 'landingTooltipMaterials'].forEach(key => {
+  ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingBrowserText', 'landingFooterText', 'landingTooltipRecording', 'landingTooltipMaterials'].forEach(key => {
     const inputId = `#${key}Input`;
     $(inputId).addEventListener('change', e => {
       settings[key] = e.target.value.trim();
@@ -1883,7 +1883,6 @@
     $('#landingPortsTextInput').value = settings.landingPortsText || '';
     $('#landingSupportTextInput').value = settings.landingSupportText || '';
     $('#landingSupportPhoneInput').value = settings.landingSupportPhone || '';
-    $('#landingSupportScheduleInput').value = settings.landingSupportSchedule || '';
     $('#landingFooterTextInput').value = settings.landingFooterText || '';
     $('#landingTooltipRecordingInput').value = settings.landingTooltipRecording || '';
     $('#landingTooltipMaterialsInput').value = settings.landingTooltipMaterials || '';
