@@ -1,0 +1,14 @@
+[
+    {
+        "username": "admin",
+        "displayName": "admin",
+        "passwordHash": "$2y$10$Rl6jsA4hwFBY7lrX\/ZgS5.\/zx\/Z56ZHcrQe\/bJEgSOc9dYLiAD80O",
+        "createdAt": "2026-07-15T08:13:22+00:00"
+    },
+    {
+        "username": "kir",
+        "displayName": "kir",
+        "passwordHash": "$2y$10$zXDlWWaRRJMiqLI\/HtBfzuQjAjYIY1e3U.S1RUSHBFHhDI3h3J3oy",
+        "createdAt": "2026-07-16T08:50:52+00:00"
+    }
+]

@@ -1,0 +1,53 @@
+{
+    "hidden": [],
+    "linkAsText": [],
+    "colWidths": {
+        "organizer": 155
+    },
+    "tableWidthMode": "scroll",
+    "landingOutputBase": "",
+    "landingPortsText": "Откройте порты TCP:443 UDP:16384 - 32768",
+    "landingSupportText": "Техническая поддержка",
+    "landingSupportPhone": "+7 910 154 76 86",
+    "landingSupportSchedule": "09:00 до 17:00",
+    "landingBrowserText": "Используйте браузеры Yandex Browser \/ Google Chrome \/ Firefox последней версии.",
+    "landingFooterText": "© 2026",
+    "registryWidth": "1400",
+    "quickLinks": [],
+    "quickLinksOrder": [],
+    "mailRecipients": [],
+    "sendExportFields": [
+        "date",
+        "link_participant",
+        "link_host",
+        "moderator_code"
+    ],
+    "columnOrder": [],
+    "columnLabels": [],
+    "activeYearFilter": "",
+    "activeFilters": {
+        "date": [
+            "2026-08-21",
+            "2026-08-05",
+            "2026-08-11",
+            "2026-08-13",
+            "2026-08-14",
+            "2026-08-18",
+            "2026-08-19",
+            "2026-08-26",
+            "2026-08-28",
+            "2026-08-27"
+        ]
+    },
+    "landingDefaultTemplate": {
+        "themePreset": "wood",
+        "dateFontPx": 54,
+        "titleFontPx": 46,
+        "metaFontPx": 17,
+        "buttonFontPx": 16,
+        "footerFontPx": 14,
+        "backgroundImage": "",
+        "backgroundIntensity": 100,
+        "titleWidthPct": 100
+    }
+}

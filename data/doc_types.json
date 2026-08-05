@@ -1,0 +1,5 @@
+[
+  { "key": "official_letter", "label": "Официальное письмо", "ext": ["doc", "docx"], "icon": "fa-solid fa-file-word" },
+  { "key": "program", "label": "Программа мероприятия", "ext": ["docx"], "icon": "fa-solid fa-file-word" },
+  { "key": "invitation", "label": "Приглашение на вебинар", "ext": ["pdf"], "icon": "fa-solid fa-file-pdf" }
+]

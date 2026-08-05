@@ -1,0 +1,9 @@
+{
+    "host": "mail.cmkpro.ru",
+    "port": 587,
+    "encryption": "tls",
+    "username": "reestr@cmkpro.ru",
+    "password": "Q68xmaep5",
+    "fromEmail": "reestr@cmkpro.ru",
+    "fromName": "ЦМК Реестр вебинаров"
+}
