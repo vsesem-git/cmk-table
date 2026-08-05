@@ -62,7 +62,7 @@
             <span><i class="fa-solid fa-palette"></i> Индивидуальная настройка темы оформления</span>
             <span class="accordion-arrow">▾</span>
           </button>
-          <div class="accordion-body" style="padding: 14px;">
+          <div class="accordion-body">
             <div class="landing-subtitle"><i class="fa-solid fa-swatchbook"></i> Тема</div>
             <div class="landing-theme-grid" id="bulk_lp_themeGrid"></div>
 

@@ -2838,7 +2838,7 @@
     
     const rowsHtml = trs.map(tr => {
       const id = Number(tr.dataset.bulkId);
-      const original = rows.find(r => r.id === id);
+      const original = rows.find(r => Number(r.id) === Number(id));
       if (!original) return '';
       
       const rowData = { ...original };
@@ -2860,7 +2860,7 @@
     bulkExportPlainText = [headers.join('\t')]
       .concat(trs.map(tr => {
         const id = Number(tr.dataset.bulkId);
-        const original = rows.find(r => r.id === id);
+        const original = rows.find(r => Number(r.id) === Number(id));
         if (!original) return '';
         const rowData = { ...original };
         const fieldsMapping = ['title', 'link_participant', 'link_host', 'moderator_code', 'link_materials', 'link_recording'];
@@ -3025,7 +3025,7 @@
     
     for (const tr of trs) {
       const id = Number(tr.dataset.bulkId);
-      const original = rows.find(r => r.id === id);
+      const original = rows.find(r => Number(r.id) === Number(id));
       if (!original) continue;
 
       const payload = { ...original };
@@ -3137,7 +3137,7 @@
 
     for (const tr of trs) {
       const id = Number(tr.dataset.bulkId);
-      const original = rows.find(r => r.id === id);
+      const original = rows.find(r => Number(r.id) === Number(id));
       if (!original) continue;
 
       // Получаем отредактированную тему прямо из textarea, чтобы страница генерировалась с новой темой!
@@ -3205,7 +3205,7 @@
 
     const selectedRows = trs.map(tr => {
       const id = Number(tr.dataset.bulkId);
-      const original = rows.find(r => r.id === id);
+      const original = rows.find(r => Number(r.id) === Number(id));
       if (!original) return null;
       
       const rowData = { ...original };
