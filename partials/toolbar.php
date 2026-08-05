@@ -38,7 +38,7 @@
 
   <div id="bulkBar" class="bulk-bar" style="display:none">
     <span id="bulkCount"><i class="fa-solid fa-check-double"></i> Выбрано: 0</span>
-    <button class="btn btn-ghost" id="bulkEditBtn" style="color: var(--teal-dark); border-color: var(--teal); margin-right: 8px;"><i class="fa-solid fa-pen-to-square"></i> Массовое редактирование</button>
+    <button class="btn btn-primary" id="bulkEditBtn" style="color: #ffffff; background: var(--teal-dark); border-color: var(--teal-dark); margin-right: 8px;"><i class="fa-solid fa-pen-to-square"></i> Массовое редактирование</button>
     <button class="btn btn-primary" id="exportXlsxBtn"><i class="fa-solid fa-file-excel"></i> Экспорт в Excel (выбранные)</button>
     <button class="btn btn-ghost" id="clearSelectionBtn"><i class="fa-solid fa-xmark"></i> Снять выделение</button>
   </div>

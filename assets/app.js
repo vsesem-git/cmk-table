@@ -2706,56 +2706,221 @@
     showToast('Шаблон по умолчанию сохранён — новые вебинары будут использовать эти настройки');
   });
 
-  // ---------- Landing page templates & saving ----------
-
-  $('#lp_saveNamedTemplateBtn').addEventListener('click', async () => {
-    const name = $('#lp_newTemplateName').value.trim();
-    if (!name) { showToast('Введите имя шаблона', true); return; }
-    if (!settings.landingTemplates) settings.landingTemplates = {};
-    settings.landingTemplates[name] = {
-      themePreset: landingThemeKey,
-      dateFontPx: landingFontSizes.dateFontPx,
-      titleFontPx: landingFontSizes.titleFontPx,
-      metaFontPx: landingFontSizes.metaFontPx,
-      buttonFontPx: landingFontSizes.buttonFontPx,
-      footerFontPx: landingFontSizes.footerFontPx,
-      backgroundImage: landingBackgroundUrl,
-      backgroundIntensity: landingBackgroundIntensity,
-      titleWidthPct: landingTitleWidthPct,
-    };
-    await saveSettings();
-    populateTemplatesDropdowns();
-    $('#lp_newTemplateName').value = '';
-    showToast(`Шаблон «${name}» сохранён!`);
-  });
-
-  $('#lp_templateSelect').addEventListener('change', e => {
-    const name = e.target.value;
-    if (!name) return;
-    const tpl = settings.landingTemplates[name];
-    if (!tpl) return;
-    landingThemeKey = tpl.themePreset || 'wood';
-    FONT_SLIDERS.forEach(s => { landingFontSizes[s.key] = tpl[s.key] || landingFontSizes[s.key]; });
-    landingBackgroundUrl = tpl.backgroundImage || '';
-    landingBackgroundIntensity = tpl.backgroundIntensity !== undefined ? tpl.backgroundIntensity : 100;
-    landingTitleWidthPct = tpl.titleWidthPct !== undefined ? tpl.titleWidthPct : 100;
-    renderThemeGrid();
-    renderSlidersGrid();
-    setImagePreview($('#lp_backgroundPreview'), landingBackgroundUrl);
-    $('#lp_backgroundIntensity').value = landingBackgroundIntensity;
-    $('#lp_backgroundIntensityVal').textContent = `${landingBackgroundIntensity}%`;
-  });
-
   // ---------- Массовое редактирование (Bulk Editing) & Ссылки ----------
 
   const bulkEditOverlay = $('#bulkEditOverlay');
+  let bulkExportPlainText = '';
+
+  let bulkThemeKey = 'wood';
+  let bulkBackgroundUrl = '';
+  let bulkBackgroundIntensity = 100;
+  let bulkTitleWidthPct = 100;
+  let bulkFontSizes = { dateFontPx: 54, titleFontPx: 46, metaFontPx: 17, buttonFontPx: 16, footerFontPx: 14 };
+
+  function renderBulkThemeGrid() {
+    $('#bulk_lp_themeGrid').innerHTML = landingMeta.themes.map(t => `
+      <div class="landing-theme-item ${t.key === bulkThemeKey ? 'active' : ''}" data-bulktheme="${t.key}">
+        <span class="landing-theme-swatch" style="background:${t.swatch}"></span>
+        <span>${escapeHtml(t.label)}</span>
+      </div>
+    `).join('');
+    $$('#bulk_lp_themeGrid .landing-theme-item').forEach(el => el.addEventListener('click', () => {
+      bulkThemeKey = el.dataset.bulktheme;
+      renderBulkThemeGrid();
+    }));
+  }
+
+  function renderBulkSlidersGrid() {
+    let html = '';
+    FONT_SLIDERS.forEach(s => {
+      html += `
+        <div class="landing-slider-row">
+          <span>${s.label}</span>
+          <input type="range" data-bulkslider="${s.key}" min="${s.min}" max="${s.max}" value="${bulkFontSizes[s.key]}">
+          <span class="slider-value" id="bulk_lp_sliderVal_${s.key}">${bulkFontSizes[s.key]}px</span>
+        </div>
+      `;
+      if (s.key === 'titleFontPx') {
+        html += `
+          <div class="landing-slider-row">
+            <span>Ширина блока темы (100% = 1400px)</span>
+            <input type="range" data-bulkwidthslider="titleWidthPct" min="100" max="200" step="5" value="${bulkTitleWidthPct}">
+            <span class="slider-value" id="bulk_lp_titleWidthVal">${bulkTitleWidthPct}%</span>
+          </div>
+        `;
+      }
+    });
+    $('#bulk_lp_slidersGrid').innerHTML = html;
+
+    $$('#bulk_lp_slidersGrid [data-bulkslider]').forEach(input => input.addEventListener('input', () => {
+      const key = input.dataset.bulkslider;
+      bulkFontSizes[key] = Number(input.value);
+      $(`#bulk_lp_sliderVal_${key}`).textContent = `${input.value}px`;
+    }));
+
+    const widthInput = $('#bulk_lp_slidersGrid [data-bulkwidthslider="titleWidthPct"]');
+    if (widthInput) {
+      widthInput.addEventListener('input', () => {
+        bulkTitleWidthPct = Number(widthInput.value);
+        $('#bulk_lp_titleWidthVal').textContent = `${bulkTitleWidthPct}%`;
+      });
+    }
+  }
+
+  function renderBulkBackgroundGallery() {
+    const el = $('#bulk_lp_backgroundGallery');
+    const items = [];
+    landingMeta.themes.forEach(t => items.push({ url: t.baseImage, title: 'Тема: ' + t.label }));
+    imageLibrary.forEach(img => items.push({ url: img.url, title: img.fileName }));
+    if (items.length === 0) {
+      el.innerHTML = `<div class="landing-gallery-empty">Пока ничего не загружено — загрузите первое изображение.</div>`;
+      return;
+    }
+    el.innerHTML = items.map(it => `
+      <div class="landing-gallery-item ${it.url === bulkBackgroundUrl ? 'active' : ''}" style="background-image:url('${it.url}')" data-url="${escapeHtml(it.url)}" title="${escapeHtml(it.title)}"></div>
+    `).join('');
+    $$('.landing-gallery-item', el).forEach(item => item.addEventListener('click', () => {
+      bulkBackgroundUrl = item.dataset.url;
+      setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+      el.style.display = 'none';
+    }));
+  }
+
+  $('[data-gallery-toggle="bulk-background"]').addEventListener('click', () => {
+    const el = $('#bulk_lp_backgroundGallery');
+    const willOpen = el.style.display === 'none';
+    if (willOpen) { renderBulkBackgroundGallery(); el.style.display = 'grid'; }
+    else el.style.display = 'none';
+  });
+
+  $('[data-gallery-clear="bulk-background"]').addEventListener('click', () => {
+    bulkBackgroundUrl = '';
+    setImagePreview($('#bulk_lp_backgroundPreview'), '');
+  });
+
+  $('#bulk_lp_backgroundFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      bulkBackgroundUrl = await uploadLandingImage(file);
+      setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+      await loadImageLibrary();
+      showToast('Фон загружен и добавлен в библиотеку');
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  $('#bulk_lp_backgroundIntensity').addEventListener('input', e => {
+    bulkBackgroundIntensity = Number(e.target.value);
+    $('#bulk_lp_backgroundIntensityVal').textContent = `${bulkBackgroundIntensity}%`;
+  });
+
+  $('#bulk_lp_templateSelect').addEventListener('change', e => {
+    const name = e.target.value;
+    const tpl = name ? settings.landingTemplates[name] : (settings.landingDefaultTemplate || {});
+    if (!tpl) return;
+    bulkThemeKey = tpl.themePreset || 'wood';
+    FONT_SLIDERS.forEach(s => { bulkFontSizes[s.key] = tpl[s.key] || bulkFontSizes[s.key]; });
+    bulkBackgroundUrl = tpl.backgroundImage || '';
+    bulkBackgroundIntensity = tpl.backgroundIntensity !== undefined ? tpl.backgroundIntensity : 100;
+    bulkTitleWidthPct = tpl.titleWidthPct !== undefined ? tpl.titleWidthPct : 100;
+    renderBulkThemeGrid();
+    renderBulkSlidersGrid();
+    setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+    $('#bulk_lp_backgroundIntensity').value = bulkBackgroundIntensity;
+    $('#bulk_lp_backgroundIntensityVal').textContent = `${bulkBackgroundIntensity}%`;
+  });
+
+  function updateBulkSendExportTableFromUI() {
+    const trs = Array.from(document.querySelectorAll('#bulkEditTableBody tr'));
+    const fields = activeExportFields();
+    const headers = fields.map(f => f.label);
+    
+    const rowsHtml = trs.map(tr => {
+      const id = Number(tr.dataset.bulkId);
+      const original = rows.find(r => r.id === id);
+      if (!original) return '';
+      
+      const rowData = { ...original };
+      const fieldsMapping = ['title', 'link_participant', 'link_host', 'moderator_code', 'link_materials', 'link_recording'];
+      fieldsMapping.forEach(field => {
+        const inp = tr.querySelector(`[data-bulk-field="${field}"]`);
+        if (inp) rowData[field] = inp.value.trim();
+      });
+      return `<tr>${fields.map(f => `<td>${escapeHtml(exportFieldValue(rowData, f.key))}</td>`).join('')}</tr>`;
+    }).join('');
+
+    $('#bulk_sendExportTableWrap').innerHTML = `
+      <table class="send-export-table">
+        <thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+
+    bulkExportPlainText = [headers.join('\t')]
+      .concat(trs.map(tr => {
+        const id = Number(tr.dataset.bulkId);
+        const original = rows.find(r => r.id === id);
+        if (!original) return '';
+        const rowData = { ...original };
+        const fieldsMapping = ['title', 'link_participant', 'link_host', 'moderator_code', 'link_materials', 'link_recording'];
+        fieldsMapping.forEach(field => {
+          const inp = tr.querySelector(`[data-bulk-field="${field}"]`);
+          if (inp) rowData[field] = inp.value.trim();
+        });
+        return fields.map(f => exportFieldValue(rowData, f.key)).join('\t');
+      }).filter(Boolean))
+      .join('\n');
+  }
+
+  function renderBulkSendExportFieldsPanel() {
+    const active = new Set(settings.sendExportFields && settings.sendExportFields.length
+      ? settings.sendExportFields : ['date', 'link_participant', 'link_host', 'moderator_code']);
+    $('#bulk_sendExportFieldsList').innerHTML = EXPORT_FIELD_DEFS.map(f => `
+      <label class="filter-opt" style="margin-right:10px;">
+        <input type="checkbox" value="${f.key}" ${active.has(f.key) ? 'checked' : ''}>
+        <span>${escapeHtml(f.label)}</span>
+      </label>
+    `).join('');
+    $$('#bulk_sendExportFieldsList input[type="checkbox"]').forEach(box => box.addEventListener('change', () => {
+      const checked = $$('#bulk_sendExportFieldsList input:checked').map(b => b.value);
+      settings.sendExportFields = checked.length ? checked : ['date', 'link_participant', 'link_host', 'moderator_code'];
+      saveSettings();
+      updateBulkSendExportTableFromUI();
+    }));
+  }
+
+  function renderBulkSendExportRecipients() {
+    const list = settings.mailRecipients || [];
+    if (!list.length) {
+      $('#bulk_sendExportRecipients').innerHTML = `<span class="hint">Нет сохранённых получателей — добавьте в «⚙ Настройка панели», или впишите email ниже вручную.</span>`;
+      return;
+    }
+    $('#bulk_sendExportRecipients').innerHTML = list.map((r, i) => `
+      <label class="mailing-list-chip" data-bulk-recipient-chip="${i}">
+        <input type="checkbox" value="${escapeHtml(r.email)}">
+        <i class="fa-solid fa-envelope" style="color:var(--teal)"></i>
+        ${escapeHtml(r.label || r.email)}
+      </label>
+    `).join('');
+    $$('#bulk_sendExportRecipients input[type="checkbox"]').forEach(box => box.addEventListener('change', () => {
+      box.closest('.mailing-list-chip').classList.toggle('active', box.checked);
+    }));
+  }
+
+  $('#bulk_sendExportFieldsGearBtn').addEventListener('click', () => {
+    const panel = $('#bulk_sendExportFieldsPanel');
+    const willOpen = panel.style.display === 'none';
+    if (willOpen) { renderBulkSendExportFieldsPanel(); panel.style.display = 'block'; }
+    else panel.style.display = 'none';
+  });
 
   function renderBulkEditRows(selected) {
     $('#bulkEditTableBody').innerHTML = selected.map(w => `
       <tr data-bulk-id="${w.id}" style="border-bottom: 1px solid var(--line);">
         <td style="padding: 10px 12px; vertical-align: top;">
           <div style="font-weight: 700; color: var(--ink); margin-bottom: 4px;">${formatDateRu(w.date)}</div>
-          <div style="color: var(--ink-soft); font-size: 12px; margin-bottom: 8px; line-height: 1.3;">${escapeHtml(w.title)}</div>
+          <textarea data-bulk-field="title" style="width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size:12px; height: 50px; resize: vertical; line-height: 1.35; margin-bottom: 8px;">${escapeHtml(w.title)}</textarea>
           <div style="display: flex; gap: 4px;">
             <button type="button" class="btn btn-ghost" data-copy-bulk-date="${w.id}" title="Скопировать дату" style="padding: 4px 8px; height: 26px; font-size: 11px;"><i class="fa-regular fa-calendar-days"></i> Дата</button>
             <button type="button" class="btn btn-ghost" data-copy-bulk-theme="${w.id}" title="Скопировать тему" style="padding: 4px 8px; height: 26px; font-size: 11px;"><i class="fa-regular fa-font"></i> Тема</button>
@@ -2772,14 +2937,31 @@
 
     // Привязываем события копирования к кнопкам
     selected.forEach(w => {
-      const btnDate = $(`[data-copy-bulk-date="${w.id}"]`);
+      const tr = $(`tr[data-bulk-id="${w.id}"]`);
+      if (!tr) return;
+
+      const btnDate = tr.querySelector(`[data-copy-bulk-date="${w.id}"]`);
       if (btnDate) btnDate.addEventListener('click', () => { copyTextToClipboard(formatDateRu(w.date)); showToast('Дата скопирована'); });
 
-      const btnTheme = $(`[data-copy-bulk-theme="${w.id}"]`);
-      if (btnTheme) btnTheme.addEventListener('click', () => { copyTextToClipboard(wrapTitle(w.title)); showToast('Тема скопирована'); });
+      const btnTheme = tr.querySelector(`[data-copy-bulk-theme="${w.id}"]`);
+      if (btnTheme) btnTheme.addEventListener('click', () => { 
+        const currentTitle = tr.querySelector('[data-bulk-field="title"]').value.trim();
+        copyTextToClipboard(wrapTitle(currentTitle)); 
+        showToast('Тема скопирована'); 
+      });
 
-      const btnBoth = $(`[data-copy-bulk-both="${w.id}"]`);
-      if (btnBoth) btnBoth.addEventListener('click', () => { copyTextToClipboard(`${formatDateRu(w.date)} ${wrapTitle(w.title)}`); showToast('Дата и тема скопированы'); });
+      const btnBoth = tr.querySelector(`[data-copy-bulk-both="${w.id}"]`);
+      if (btnBoth) btnBoth.addEventListener('click', () => { 
+        const currentTitle = tr.querySelector('[data-bulk-field="title"]').value.trim();
+        copyTextToClipboard(`${formatDateRu(w.date)} ${wrapTitle(currentTitle)}`); 
+        showToast('Дата и тема скопированы'); 
+      });
+    });
+
+    // Изменение любого поля обновляет Outlook таблицу-превью
+    $$('#bulkEditTableBody input, #bulkEditTableBody textarea').forEach(inp => {
+      inp.addEventListener('input', updateBulkSendExportTableFromUI);
+      inp.addEventListener('change', updateBulkSendExportTableFromUI);
     });
   }
 
@@ -2800,9 +2982,35 @@
     // Загрузка шаблонов в селект
     populateTemplatesDropdowns();
 
+    const defTpl = settings.landingDefaultTemplate || {};
+    bulkThemeKey = defTpl.themePreset || 'wood';
+    bulkBackgroundUrl = defTpl.backgroundImage || '';
+    bulkBackgroundIntensity = defTpl.backgroundIntensity !== undefined ? defTpl.backgroundIntensity : 100;
+    bulkTitleWidthPct = defTpl.titleWidthPct !== undefined ? defTpl.titleWidthPct : 100;
+    bulkFontSizes = {
+      dateFontPx: defTpl.dateFontPx || 54,
+      titleFontPx: defTpl.titleFontPx || 46,
+      metaFontPx: defTpl.metaFontPx || 17,
+      buttonFontPx: defTpl.buttonFontPx || 16,
+      footerFontPx: defTpl.footerFontPx || 14
+    };
+
+    renderBulkThemeGrid();
+    renderBulkSlidersGrid();
+    setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+
+    $('#bulk_lp_themeAccordion').classList.remove('open');
+    $('#bulk_lp_backgroundGallery').style.display = 'none';
+
     $('#bulk_lp_linkLength').value = settings.landingLinkLength || 6;
     $('#bulk_lp_regenerateCode').checked = false;
     $('#bulk_lp_newTemplateName').value = '';
+
+    // Инициализация Outlook выгрузки
+    updateBulkSendExportTableFromUI();
+    renderBulkSendExportRecipients();
+    $('#bulk_sendExportCustomEmail').value = '';
+    $('#bulk_sendExportFieldsPanel').style.display = 'none';
 
     bulkEditOverlay.style.display = 'flex';
   });
@@ -2821,6 +3029,7 @@
       if (!original) continue;
 
       const payload = { ...original };
+      payload.title = tr.querySelector('[data-bulk-field="title"]').value.trim();
       payload.link_participant = tr.querySelector('[data-bulk-field="link_participant"]').value.trim();
       payload.link_host = tr.querySelector('[data-bulk-field="link_host"]').value.trim();
       payload.moderator_code = tr.querySelector('[data-bulk-field="moderator_code"]').value.trim();
@@ -2865,19 +3074,16 @@
     if (!name) { showToast('Укажите имя для шаблона', true); return; }
     if (!settings.landingTemplates) settings.landingTemplates = {};
 
-    const selVal = $('#bulk_lp_templateSelect').value;
-    const src = selVal ? settings.landingTemplates[selVal] : (settings.landingDefaultTemplate || {});
-
     settings.landingTemplates[name] = {
-      themePreset: src.themePreset || 'wood',
-      dateFontPx: src.dateFontPx || 54,
-      titleFontPx: src.titleFontPx || 46,
-      metaFontPx: src.metaFontPx || 17,
-      buttonFontPx: src.buttonFontPx || 16,
-      footerFontPx: src.footerFontPx || 14,
-      backgroundImage: src.backgroundImage || '',
-      backgroundIntensity: src.backgroundIntensity !== undefined ? src.backgroundIntensity : 100,
-      titleWidthPct: src.titleWidthPct !== undefined ? src.titleWidthPct : 100,
+      themePreset: bulkThemeKey,
+      dateFontPx: bulkFontSizes.dateFontPx,
+      titleFontPx: bulkFontSizes.titleFontPx,
+      metaFontPx: bulkFontSizes.metaFontPx,
+      buttonFontPx: bulkFontSizes.buttonFontPx,
+      footerFontPx: bulkFontSizes.footerFontPx,
+      backgroundImage: bulkBackgroundUrl,
+      backgroundIntensity: bulkBackgroundIntensity,
+      titleWidthPct: bulkTitleWidthPct,
     };
 
     await saveSettings();
@@ -2888,20 +3094,19 @@
   });
 
   // Генерация страниц для массового редактирования
-  async function publishBulkLanding(webinar, templateOptionName, lengthVal) {
-    const src = templateOptionName ? settings.landingTemplates[templateOptionName] : (settings.landingDefaultTemplate || {});
+  async function publishBulkLanding(webinar, lengthVal) {
     const payload = {
       webinarId: String(webinar.id),
       eventTime: '10:00',
-      themePreset: src.themePreset || 'wood',
-      dateFontPx: src.dateFontPx || 54,
-      titleFontPx: src.titleFontPx || 46,
-      metaFontPx: src.metaFontPx || 17,
-      buttonFontPx: src.buttonFontPx || 16,
-      footerFontPx: src.footerFontPx || 14,
-      backgroundImage: src.backgroundImage || '',
-      backgroundIntensity: src.backgroundIntensity !== undefined ? src.backgroundIntensity : 100,
-      titleWidthPct: src.titleWidthPct !== undefined ? src.titleWidthPct : 100,
+      themePreset: bulkThemeKey,
+      dateFontPx: bulkFontSizes.dateFontPx,
+      titleFontPx: bulkFontSizes.titleFontPx,
+      metaFontPx: bulkFontSizes.metaFontPx,
+      buttonFontPx: bulkFontSizes.buttonFontPx,
+      footerFontPx: bulkFontSizes.footerFontPx,
+      backgroundImage: bulkBackgroundUrl,
+      backgroundIntensity: bulkBackgroundIntensity,
+      titleWidthPct: bulkTitleWidthPct,
       customButtons: [],
       regenerateFileName: $('#bulk_lp_regenerateCode').checked,
     };
@@ -2913,8 +3118,8 @@
   }
 
   $('#bulk_lp_generateBtn').addEventListener('click', async () => {
-    const selected = getSelectedRowsSortedByDate();
-    if (!selected.length) return;
+    const trs = Array.from(document.querySelectorAll('#bulkEditTableBody tr'));
+    if (!trs.length) return;
 
     let lengthVal = parseInt($('#bulk_lp_linkLength').value, 10);
     if (isNaN(lengthVal) || lengthVal < 4) lengthVal = 4;
@@ -2923,8 +3128,6 @@
     settings.landingLinkLength = lengthVal;
     await saveSettings();
 
-    const tplName = $('#bulk_lp_templateSelect').value;
-
     const btn = $('#bulk_lp_generateBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выполняется…';
@@ -2932,12 +3135,19 @@
     let successCount = 0;
     let failCount = 0;
 
-    for (const w of selected) {
+    for (const tr of trs) {
+      const id = Number(tr.dataset.bulkId);
+      const original = rows.find(r => r.id === id);
+      if (!original) continue;
+
+      // Получаем отредактированную тему прямо из textarea, чтобы страница генерировалась с новой темой!
+      const currentTitle = tr.querySelector('[data-bulk-field="title"]').value.trim();
+      const tempWebinar = { ...original, title: currentTitle };
+
       try {
-        const data = await publishBulkLanding(w, tplName, lengthVal);
+        const data = await publishBulkLanding(tempWebinar, lengthVal);
         successCount++;
-        // Находим строку в таблице оверлея и заполняем новое значение ссылки
-        const trInput = $(`tr[data-bulk-id="${w.id}"] [data-bulk-field="link_participant"]`);
+        const trInput = tr.querySelector('[data-bulk-field="link_participant"]');
         if (trInput) trInput.value = data.publicUrl;
       } catch (err) {
         failCount++;
@@ -2947,10 +3157,96 @@
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Сгенерировать страницы';
 
+    // Обновляем таблицу-превью Outlook
+    updateBulkSendExportTableFromUI();
+
     if (failCount === 0) {
       showToast(`Сгенерировано страниц участников: ${successCount}`);
     } else {
       showToast(`Сгенерировано: ${successCount}, ошибок: ${failCount}`, true);
+    }
+  });
+
+  // Копирование таблицы Outlook
+  $('#bulk_sendExportCopyBtn').addEventListener('click', async () => {
+    const html = $('#bulk_sendExportTableWrap').innerHTML;
+    try {
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([bulkExportPlainText], { type: 'text/plain' }),
+      });
+      await navigator.clipboard.write([item]);
+      showToast('Таблица скопирована — вставьте в письмо');
+    } catch (e) {
+      try {
+        const range = document.createRange();
+        range.selectNode($('#bulk_sendExportTableWrap'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+        showToast('Таблица скопирована — вставьте в письмо');
+      } catch (e2) {
+        showToast('Не удалось скопировать автоматически — выделите таблицу и нажмите Ctrl+C', true);
+      }
+    }
+  });
+
+  // Отправка таблицы на почту из массового редактирования
+  $('#bulk_sendExportMailBtn').addEventListener('click', async () => {
+    const checked = $$('#bulk_sendExportRecipients input:checked').map(b => b.value);
+    const custom = $('#bulk_sendExportCustomEmail').value.split(',').map(s => s.trim()).filter(Boolean);
+    const to = Array.from(new Set([...checked, ...custom]));
+    if (!to.length) { showToast('Выберите получателя или впишите email вручную', true); return; }
+
+    const trs = Array.from(document.querySelectorAll('#bulkEditTableBody tr'));
+    if (!trs.length) { showToast('Нет данных для отправки', true); return; }
+
+    const selectedRows = trs.map(tr => {
+      const id = Number(tr.dataset.bulkId);
+      const original = rows.find(r => r.id === id);
+      if (!original) return null;
+      
+      const rowData = { ...original };
+      const fieldsMapping = ['title', 'link_participant', 'link_host', 'moderator_code', 'link_materials', 'link_recording'];
+      fieldsMapping.forEach(field => {
+        const inp = tr.querySelector(`[data-bulk-field="${field}"]`);
+        if (inp) rowData[field] = inp.value.trim();
+      });
+      return rowData;
+    }).filter(Boolean);
+
+    const dates = selectedRows.map(r => r.date).sort();
+    const subject = `Ссылки на вебинары {${formatDateSlash(dates[0])}-${formatDateSlash(dates[dates.length - 1])}}`;
+
+    const fields = activeExportFields();
+    const rowsHtml = selectedRows.map((r, i) => `
+      <tr style="background:${i % 2 ? '#EDF5F3' : '#FFFFFF'}">
+        ${fields.map(f => {
+          const val = exportFieldValue(r, f.key);
+          const cell = EXPORT_LINK_FIELDS.has(f.key) && val
+            ? `<a href="${escapeHtml(val)}" style="color:#0A5E5E;">${escapeHtml(val)}</a>`
+            : escapeHtml(val || '—');
+          return `<td style="padding:7px 12px;border-bottom:1px solid #E7EEEC;">${cell}</td>`;
+        }).join('')}
+      </tr>
+    `).join('');
+    
+    const tableHtml = `
+      <table class="mail-table" style="border-collapse:collapse;width:100%;font-size:13px;">
+        <thead><tr>${fields.map(f => `<th style="background:#0A5E5E;color:#fff;text-align:left;padding:8px 12px;">${escapeHtml(f.label)}</th>`).join('')}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+
+    try {
+      const res = await fetch('mail_send.php', { method: 'POST', body: JSON.stringify({ to, subject, tableHtml }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Не удалось отправить');
+      showToast(`Письмо отправлено: ${to.join(', ')}`);
+    } catch (err) {
+      showToast(err.message, true);
     }
   });
 
