@@ -2304,11 +2304,17 @@
     else showToast('Не удалось скопировать — вот ссылка: ' + url, true);
   }
 
-  $('#contractTemplateDownloadBtn').addEventListener('click', () => {
-    window.open('contract_template.php?action=download', '_blank');
-  });
+  const downloadBtn = $('#contractTemplateDownloadBtn');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', () => {
+      window.open('contract_template.php?action=download', '_blank');
+    });
+  }
 
-  $('#contractTemplateCopyLinkBtn').addEventListener('click', () => copyLinkWithToast(contractTemplatePublicUrl()));
+  const copyLinkBtn = $('#contractTemplateCopyLinkBtn');
+  if (copyLinkBtn) {
+    copyLinkBtn.addEventListener('click', () => copyLinkWithToast(contractTemplatePublicUrl()));
+  }
 
   $('#contractGenBtn').addEventListener('click', async () => {
     const selected = getSelectedRowsSortedByDate();

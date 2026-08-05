@@ -123,6 +123,7 @@
             <div class="landing-img-actions" style="margin-top:8px">
               <label class="btn btn-ghost landing-upload-btn"><i class="fa-solid fa-upload"></i> Загрузить / заменить файл<input type="file" id="contractTemplateFile" accept=".json" style="display:none"></label>
               <button type="button" class="btn btn-ghost" id="contractTemplateDownloadBtn"><i class="fa-solid fa-download"></i> Скачать</button>
+              <button type="button" class="btn btn-ghost" id="contractTemplateCopyLinkBtn"><i class="fa-solid fa-link"></i> Скопировать ссылку</button>
             </div>
           </div>
 
