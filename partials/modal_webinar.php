@@ -11,7 +11,7 @@
       <input type="hidden" id="f_id">
       <div class="modal-body">
         <!-- 1 строка: Организатор, Дата вебинара, Спикер, Цена, ₽ -->
-        <div class="field-row field-row-quad" style="margin-bottom: 14px;">
+        <div class="field-row field-row-quad" style="margin-bottom: 14px; --grid-cols: 20fr 22fr 36fr 22fr;">
           <div class="field" style="--fr-w:20%">
             <label for="f_organizer">Организатор</label>
             <select id="f_organizer" required></select>
@@ -59,7 +59,7 @@
         </div>
 
         <!-- 3 строка: Направление, Рассылка, Размещён на сайте, Входит в подписку -->
-        <div class="field-row field-row-quad" style="margin-bottom: 14px;">
+        <div class="field-row field-row-quad" style="margin-bottom: 14px; --grid-cols: 1fr 1fr 1fr 1fr;">
           <div class="field" style="--fr-w:25%">
             <label for="f_direction"><i class="fa-solid fa-signs-post"></i> Направление</label>
             <select id="f_direction"></select>
