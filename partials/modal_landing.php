@@ -76,7 +76,6 @@
     </div>
     <div class="modal-footer">
       <span class="hint" style="margin-right:auto" id="landingHint"></span>
-      <button type="button" class="btn btn-ghost" id="landingSaveDraftBtn"><i class="fa-regular fa-floppy-disk"></i> Сохранить черновик</button>
       <button type="button" class="btn btn-primary" id="landingPublishBtn"><i class="fa-solid fa-upload"></i> Опубликовать</button>
     </div>
   </div>

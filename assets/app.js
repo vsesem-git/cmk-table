@@ -29,6 +29,7 @@
     { key: 'mailing_list',        label: 'Рассылка',           type: 'tags', filterable: true, sortable: false, width: '150px' },
     { key: 'direction',           label: 'Направление',        type: 'badge', filterable: true, sortable: false, width: '140px' },
     { key: 'subscription',     label: 'Входит в подписку',  type: 'badge', filterable: true, sortable: false, width: '150px' },
+    { key: 'actions',           label: 'Действия',          type: 'actions', filterable: false, sortable: false, width: '110px' },
   ];
 
   let COLUMNS = BASE_COLUMNS.slice();
@@ -54,11 +55,14 @@
   function defaultSettings() {
     return {
       hidden: [], linkAsText: [], colWidths: {}, tableWidthMode: 'scroll', landingOutputBase: '',
+      landingLinkLength: 6,
       landingPortsText: 'Откройте порты TCP:443 UDP:16384 - 32768',
       landingSupportText: 'Техническая поддержка',
       landingSupportPhone: '+7 910 154 76 86',
       landingSupportSchedule: '(гарантируется только в день вебинара с 10:00 до 15:00)',
-      landingBrowserText: 'Используйте браузеры Yandex Browser / Google Chrome / Firefox последней версии.',
+      landingBrowserText: 'Используйте браузеры Yandex-Браузер / Google Chrome / Chromium / Firefox.',
+      landingTooltipRecording: 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.',
+      landingTooltipMaterials: 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.',
       landingFooterText: '© 2026 Страница создана по материалам вебинара',
       registryWidth: '1400',
       quickLinks: [],
@@ -375,7 +379,6 @@
   // ---------- Header ----------
 
   const CHECK_COL_PX = 36;
-  const ACTIONS_COL_PX = 110;
 
   function renderColgroup() {
     const cols = visibleColumns();
@@ -385,12 +388,10 @@
     if (settings.tableWidthMode === 'fit') {
       const total = cols.reduce((s, c) => s + effectiveWidthPx(c), 0) || 1;
       cols.forEach(c => { html += `<col style="width:${(effectiveWidthPx(c) / total * 100).toFixed(3)}%">`; });
-      html += `<col style="width:${ACTIONS_COL_PX}px">`;
       table.style.width = '100%';
     } else {
       cols.forEach(c => { html += `<col style="width:${effectiveWidthPx(c)}px">`; });
-      html += `<col style="width:${ACTIONS_COL_PX}px">`;
-      const total = CHECK_COL_PX + ACTIONS_COL_PX + cols.reduce((s, c) => s + effectiveWidthPx(c), 0);
+      const total = CHECK_COL_PX + cols.reduce((s, c) => s + effectiveWidthPx(c), 0);
       table.style.width = total + 'px';
     }
     table.style.tableLayout = 'fixed';
@@ -414,7 +415,6 @@
         <div class="col-resizer" data-resize="${col.key}" title="Потяните, чтобы изменить ширину"></div>
       </th>`;
     });
-    html += `<th><div class="th-inner"><span>Действия</span></div></th>`;
     html += '</tr>';
     $('#tableHead').innerHTML = html;
 
@@ -472,6 +472,22 @@
         }
         return `<td>${linkPill(v, label, asText)}</td>`;
       }
+      case 'actions': {
+        return `
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn" data-edit="${row.id}" title="Редактировать">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn" data-dup="${row.id}" title="Дублировать">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="icon-btn danger" data-del="${row.id}" title="Удалить">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+          </div>
+        </td>`;
+      }
       case 'text':
       default:
         if (col.key === 'title') return `<td class="title-cell">${escapeHtml(v)}</td>`;
@@ -483,26 +499,13 @@
     const cols = visibleColumns();
     const vis = visibleRows();
     if (vis.length === 0) {
-      $('#tableBody').innerHTML = `<tr><td colspan="${cols.length + 2}"><div class="empty-state"><strong>Ничего не найдено</strong>Попробуйте изменить фильтры или поисковый запрос.</div></td></tr>`;
+      $('#tableBody').innerHTML = `<tr><td colspan="${cols.length + 1}"><div class="empty-state"><strong>Ничего не найдено</strong>Попробуйте изменить фильтры или поисковый запрос.</div></td></tr>`;
       return;
     }
     $('#tableBody').innerHTML = vis.map(r => `
       <tr data-id="${r.id}" class="${selectedIds.has(r.id) ? 'row-selected' : ''}">
         <td class="col-check"><input type="checkbox" class="row-check" data-id="${r.id}" ${selectedIds.has(r.id) ? 'checked' : ''}></td>
         ${cols.map(col => cellHtml(col, r)).join('')}
-        <td>
-          <div class="row-actions">
-            <button class="icon-btn" data-edit="${r.id}" title="Редактировать">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <button class="icon-btn" data-dup="${r.id}" title="Дублировать">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-            <button class="icon-btn danger" data-del="${r.id}" title="Удалить">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            </button>
-          </div>
-        </td>
       </tr>
     `).join('');
 
@@ -1167,7 +1170,6 @@
   $('#addBtn').addEventListener('click', () => openModal());
   $('#modalClose').addEventListener('click', closeModal);
   $('#modalCancel').addEventListener('click', closeModal);
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
   $('#webinarForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -1392,7 +1394,16 @@
     saveSettings();
   });
 
-  ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingSupportSchedule', 'landingBrowserText', 'landingFooterText'].forEach(key => {
+  $('#landingLinkLengthInput').addEventListener('change', e => {
+    let val = parseInt(e.target.value, 10);
+    if (isNaN(val) || val < 4) val = 4;
+    if (val > 32) val = 32;
+    settings.landingLinkLength = val;
+    e.target.value = val;
+    saveSettings();
+  });
+
+  ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingSupportSchedule', 'landingBrowserText', 'landingFooterText', 'landingTooltipRecording', 'landingTooltipMaterials'].forEach(key => {
     const inputId = `#${key}Input`;
     $(inputId).addEventListener('change', e => {
       settings[key] = e.target.value.trim();
@@ -1848,12 +1859,15 @@
     populateYearFilterSelect();
     loadContractTemplateStatus();
     $('#landingOutputBaseInput').value = settings.landingOutputBase || '';
+    $('#landingLinkLengthInput').value = settings.landingLinkLength || 6;
     $('#landingBrowserTextInput').value = settings.landingBrowserText || '';
     $('#landingPortsTextInput').value = settings.landingPortsText || '';
     $('#landingSupportTextInput').value = settings.landingSupportText || '';
     $('#landingSupportPhoneInput').value = settings.landingSupportPhone || '';
     $('#landingSupportScheduleInput').value = settings.landingSupportSchedule || '';
     $('#landingFooterTextInput').value = settings.landingFooterText || '';
+    $('#landingTooltipRecordingInput').value = settings.landingTooltipRecording || '';
+    $('#landingTooltipMaterialsInput').value = settings.landingTooltipMaterials || '';
     $('#quickLinkForm').style.display = 'none';
     renderQuickLinksList();
     $('#mailRecipientForm').style.display = 'none';
@@ -1952,6 +1966,10 @@
     if (!selected.length) { showToast('Сначала отметьте вебинары чекбоксом', true); return; }
     const lines = selected.map(r => `${formatDateRu(r.date)} ${r.speaker}`);
     $('#crmFieldsText').value = lines.join('\n');
+    
+    const lines2 = selected.map(r => `${formatDateRu(r.date)} «${stripGuillemets(r.title)}»`);
+    $('#crmFieldsText2').value = lines2.join('\n');
+    
     $('#crmFieldsCount').textContent = `${selected.length} стро${selected.length === 1 ? 'ка' : 'к'}`;
     crmFieldsOverlay.style.display = 'flex';
   });
@@ -1960,8 +1978,13 @@
   crmFieldsOverlay.addEventListener('click', e => { if (e.target === crmFieldsOverlay) crmFieldsOverlay.style.display = 'none'; });
   $('#crmFieldsCopyBtn').addEventListener('click', async () => {
     const ok = await copyTextToClipboard($('#crmFieldsText').value);
-    if (ok) showToast('Скопировано');
+    if (ok) showToast('Скопирован список 1');
     else { $('#crmFieldsText').select(); showToast('Не удалось скопировать автоматически — текст выделен, нажмите Ctrl+C', true); }
+  });
+  $('#crmFieldsCopyBtn2').addEventListener('click', async () => {
+    const ok = await copyTextToClipboard($('#crmFieldsText2').value);
+    if (ok) showToast('Скопирован список 2');
+    else { $('#crmFieldsText2').select(); showToast('Не удалось скопировать автоматически — текст выделен, нажмите Ctrl+C', true); }
   });
 
   // ---------- «Выгрузить для отправки» (таблица для Outlook/писем) ----------
@@ -2659,13 +2682,226 @@
     showToast('Шаблон по умолчанию сохранён — новые вебинары будут использовать эти настройки');
   });
 
-  $('#landingSaveDraftBtn').addEventListener('click', async () => {
+  // ---------- Bulk Link Generation ----------
+
+  let bulkThemeKey = 'wood';
+  let bulkBackgroundUrl = '';
+  let bulkBackgroundIntensity = 100;
+  let bulkTitleWidthPct = 100;
+  let bulkFontSizes = { dateFontPx: 54, titleFontPx: 46, metaFontPx: 17, buttonFontPx: 16, footerFontPx: 14 };
+
+  function renderBulkThemeGrid() {
+    $('#bulk_lp_themeGrid').innerHTML = landingMeta.themes.map(t => `
+      <div class="landing-theme-item ${t.key === bulkThemeKey ? 'active' : ''}" data-bulktheme="${t.key}">
+        <span class="landing-theme-swatch" style="background:${t.swatch}"></span>
+        <span>${escapeHtml(t.label)}</span>
+      </div>
+    `).join('');
+    $$('#bulk_lp_themeGrid .landing-theme-item').forEach(el => el.addEventListener('click', () => {
+      bulkThemeKey = el.dataset.bulktheme;
+      renderBulkThemeGrid();
+    }));
+  }
+
+  function renderBulkSlidersGrid() {
+    let html = '';
+    FONT_SLIDERS.forEach(s => {
+      html += `
+        <div class="landing-slider-row">
+          <span>${s.label}</span>
+          <input type="range" data-bulkslider="${s.key}" min="${s.min}" max="${s.max}" value="${bulkFontSizes[s.key]}">
+          <span class="slider-value" id="bulk_lp_sliderVal_${s.key}">${bulkFontSizes[s.key]}px</span>
+        </div>
+      `;
+      if (s.key === 'titleFontPx') {
+        html += `
+          <div class="landing-slider-row">
+            <span>Ширина блока темы (100% = 1400px)</span>
+            <input type="range" data-bulkwidthslider="titleWidthPct" min="100" max="200" step="5" value="${bulkTitleWidthPct}">
+            <span class="slider-value" id="bulk_lp_titleWidthVal">${bulkTitleWidthPct}%</span>
+          </div>
+        `;
+      }
+    });
+    $('#bulk_lp_slidersGrid').innerHTML = html;
+
+    $$('#bulk_lp_slidersGrid [data-bulkslider]').forEach(input => input.addEventListener('input', () => {
+      const key = input.dataset.bulkslider;
+      bulkFontSizes[key] = Number(input.value);
+      $(`#bulk_lp_sliderVal_${key}`).textContent = `${input.value}px`;
+    }));
+
+    const widthInput = $('#bulk_lp_slidersGrid [data-bulkwidthslider="titleWidthPct"]');
+    if (widthInput) {
+      widthInput.addEventListener('input', () => {
+        bulkTitleWidthPct = Number(widthInput.value);
+        $('#bulk_lp_titleWidthVal').textContent = `${bulkTitleWidthPct}%`;
+      });
+    }
+  }
+
+  function renderBulkBackgroundGallery() {
+    const el = $('#bulk_lp_backgroundGallery');
+    const items = [];
+    landingMeta.themes.forEach(t => items.push({ url: t.baseImage, title: 'Тема: ' + t.label }));
+    imageLibrary.forEach(img => items.push({ url: img.url, title: img.fileName }));
+    if (items.length === 0) {
+      el.innerHTML = `<div class="landing-gallery-empty">Пока ничего не загружено — загрузите первое изображение.</div>`;
+      return;
+    }
+    el.innerHTML = items.map(it => `
+      <div class="landing-gallery-item ${it.url === bulkBackgroundUrl ? 'active' : ''}" style="background-image:url('${it.url}')" data-url="${escapeHtml(it.url)}" title="${escapeHtml(it.title)}"></div>
+    `).join('');
+    $$('.landing-gallery-item', el).forEach(item => item.addEventListener('click', () => {
+      bulkBackgroundUrl = item.dataset.url;
+      setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+      el.style.display = 'none';
+    }));
+  }
+
+  $('[data-gallery-toggle="bulk-background"]').addEventListener('click', () => {
+    const el = $('#bulk_lp_backgroundGallery');
+    const willOpen = el.style.display === 'none';
+    if (willOpen) { renderBulkBackgroundGallery(); el.style.display = 'grid'; }
+    else el.style.display = 'none';
+  });
+
+  $('[data-gallery-clear="bulk-background"]').addEventListener('click', () => {
+    bulkBackgroundUrl = '';
+    setImagePreview($('#bulk_lp_backgroundPreview'), '');
+  });
+
+  $('#bulk_lp_backgroundFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
     try {
-      const res = await fetch(LANDING_API, { method: 'POST', body: JSON.stringify(collectLandingPayload()) });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || 'Не удалось сохранить черновик');
-      showToast('Черновик страницы сохранён');
+      bulkBackgroundUrl = await uploadLandingImage(file);
+      setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+      await loadImageLibrary();
+      showToast('Фон загружен и добавлен в библиотеку');
     } catch (err) { showToast(err.message, true); }
+  });
+
+  $('#bulk_lp_backgroundIntensity').addEventListener('input', e => {
+    bulkBackgroundIntensity = Number(e.target.value);
+    $('#bulk_lp_backgroundIntensityVal').textContent = `${bulkBackgroundIntensity}%`;
+  });
+
+  async function publishBulkLanding(webinar) {
+    const payload = {
+      webinarId: String(webinar.id),
+      eventTime: '10:00',
+      themePreset: bulkThemeKey,
+      dateFontPx: bulkFontSizes.dateFontPx,
+      titleFontPx: bulkFontSizes.titleFontPx,
+      metaFontPx: bulkFontSizes.metaFontPx,
+      buttonFontPx: bulkFontSizes.buttonFontPx,
+      footerFontPx: bulkFontSizes.footerFontPx,
+      backgroundImage: bulkBackgroundUrl,
+      backgroundIntensity: bulkBackgroundIntensity,
+      titleWidthPct: bulkTitleWidthPct,
+      customButtons: [],
+      regenerateFileName: $('#bulk_lp_regenerateCode').checked,
+    };
+    const res = await fetch(`${LANDING_API}?action=publish`, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Не удалось опубликовать страницу');
+    return json.data;
+  }
+
+  $('#linkGenBtn').addEventListener('click', async () => {
+    const selected = getSelectedRowsSortedByDate();
+    if (!selected.length) { showToast('Сначала отметьте вебинары чекбоксом', true); return; }
+    
+    $('#linkGenSelectionCount').textContent = `Выбрано вебинаров: ${selected.length}`;
+    
+    if (!landingMeta.themes.length) await loadLandingMeta();
+    await loadImageLibrary();
+
+    const defTpl = settings.landingDefaultTemplate || {};
+    bulkThemeKey = defTpl.themePreset || 'wood';
+    bulkBackgroundUrl = defTpl.backgroundImage || '';
+    bulkBackgroundIntensity = defTpl.backgroundIntensity !== undefined ? defTpl.backgroundIntensity : 100;
+    bulkTitleWidthPct = defTpl.titleWidthPct !== undefined ? defTpl.titleWidthPct : 100;
+    bulkFontSizes = {
+      dateFontPx: defTpl.dateFontPx || 54,
+      titleFontPx: defTpl.titleFontPx || 46,
+      metaFontPx: defTpl.metaFontPx || 17,
+      buttonFontPx: defTpl.buttonFontPx || 16,
+      footerFontPx: defTpl.footerFontPx || 14
+    };
+
+    $('#bulk_lp_linkLength').value = settings.landingLinkLength || 6;
+    $('#bulk_lp_regenerateCode').checked = false;
+
+    renderBulkThemeGrid();
+    renderBulkSlidersGrid();
+    setImagePreview($('#bulk_lp_backgroundPreview'), bulkBackgroundUrl);
+
+    $('#bulk_lp_themeAccordion').classList.remove('open');
+    $('#bulk_lp_backgroundGallery').style.display = 'none';
+
+    $('#linkGenResultContainer').style.display = 'none';
+    $('#linkGenResultText').value = '';
+
+    $('#linkGenOverlay').style.display = 'flex';
+  });
+
+  $('#linkGenClose').addEventListener('click', () => $('#linkGenOverlay').style.display = 'none');
+  $('#linkGenCloseBtn').addEventListener('click', () => $('#linkGenOverlay').style.display = 'none');
+  $('#linkGenOverlay').addEventListener('click', e => { if (e.target === $('#linkGenOverlay')) $('#linkGenOverlay').style.display = 'none'; });
+
+  $('#linkGenGenerateBtn').addEventListener('click', async () => {
+    const selected = getSelectedRowsSortedByDate();
+    if (!selected.length) return;
+
+    let lengthVal = parseInt($('#bulk_lp_linkLength').value, 10);
+    if (isNaN(lengthVal) || lengthVal < 4) lengthVal = 4;
+    if (lengthVal > 32) lengthVal = 32;
+
+    settings.landingLinkLength = lengthVal;
+    await saveSettings();
+
+    const btn = $('#linkGenGenerateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Генерируем…';
+
+    const results = [];
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const w of selected) {
+      try {
+        const data = await publishBulkLanding(w);
+        successCount++;
+        results.push(`${formatDateRu(w.date)} — ${data.publicUrl} — Код модератора: ${w.moderator_code || '—'}`);
+      } catch (err) {
+        failCount++;
+        results.push(`${formatDateRu(w.date)} — Ошибка: ${err.message}`);
+      }
+    }
+
+    await loadRows();
+    renderAll();
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Сгенерировать';
+
+    $('#linkGenResultText').value = results.join('\n');
+    $('#linkGenResultContainer').style.display = 'block';
+
+    if (failCount === 0) {
+      showToast(`Успешно сгенерировано страниц: ${successCount}`);
+    } else {
+      showToast(`Сгенерировано: ${successCount}, ошибок: ${failCount}`, true);
+    }
+  });
+
+  $('#linkGenCopyResultBtn').addEventListener('click', async () => {
+    const ok = await copyTextToClipboard($('#linkGenResultText').value);
+    if (ok) showToast('Список скопирован в буфер обмена');
+    else { $('#linkGenResultText').select(); showToast('Выделите текст и нажмите Ctrl+C', true); }
   });
 
   async function publishLanding(webinarId) {
@@ -2684,6 +2920,7 @@
       await loadRows();
       renderAll();
       showToast('Страница опубликована, ссылка подставлена в форму');
+      closeLandingModal();
     } catch (err) {
       showToast(err.message, true);
     }
@@ -2720,6 +2957,16 @@
       await loadLandingMeta();
       await loadRows();
       renderAll();
+      $('#dataTable').addEventListener('dblclick', e => {
+        const td = e.target.closest('td.title-cell');
+        if (!td) return;
+        const tr = td.closest('tr');
+        if (!tr) return;
+        const id = Number(tr.dataset.id);
+        if (!isNaN(id)) {
+          openModal(id);
+        }
+      });
     } catch (err) {
       $('#tableHead').innerHTML = '';
       $('#tableBody').innerHTML = `<tr><td><div class="empty-state"><strong>Не удалось загрузить данные</strong>${escapeHtml(err.message)}</div></td></tr>`;

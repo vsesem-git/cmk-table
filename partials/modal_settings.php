@@ -112,6 +112,10 @@
           <span class="col-label" style="flex:0 0 auto">Подпапка на сервере (внутри корня сайта)</span>
           <input type="text" id="landingOutputBaseInput" placeholder="например land, или оставьте пустым" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;">
         </div>
+        <div class="settings-row" style="border-bottom:none; margin-top: 8px;">
+          <span class="col-label" style="flex:0 0 auto">Длина окончания ссылки (символов)</span>
+          <input type="number" id="landingLinkLengthInput" min="4" max="32" placeholder="6" style="width:80px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;">
+        </div>
         <div class="hint" style="padding:0 4px 10px">Страницы публикуются в «(эта подпапка)/(год вебинара)/» прямо в корне сайта — например «2026/ab12cd.html». Домен нигде не зашит в код, при переезде на другой домен менять не нужно.</div>
       </div>
 
@@ -141,6 +145,14 @@
           <div class="field field-full">
             <label>Текст в футере страницы</label>
             <input type="text" id="landingFooterTextInput" placeholder="© 2026 Страница создана по материалам вебинара">
+          </div>
+          <div class="field field-full" style="margin-top: 6px;">
+            <label>Подсказка при отсутствии записи трансляции</label>
+            <input type="text" id="landingTooltipRecordingInput" placeholder="Организатор еще не разместил запись трансляции...">
+          </div>
+          <div class="field field-full" style="margin-top: 6px;">
+            <label>Подсказка при отсутствии материалов вебинара</label>
+            <input type="text" id="landingTooltipMaterialsInput" placeholder="Организатор еще не разместил материалы вебинара...">
           </div>
         </div>
       </div>

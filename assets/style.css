@@ -591,6 +591,12 @@ tbody tr:hover .row-actions { opacity: 1; }
 }
 
 .modal-narrow { max-width: 760px; }
+.modal-wider { max-width: 1100px; }
+.webinar-columns-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; grid-column: 1 / -1; }
+.webinar-column { display: flex; flex-direction: column; }
+@media (max-width: 900px) {
+  .webinar-columns-grid { grid-template-columns: 1fr; }
+}
 
 .settings-body {
   display: flex;

@@ -1,6 +1,6 @@
 <!-- Модальное окно добавления/редактирования -->
 <div id="modalOverlay" class="modal-overlay" style="display:none">
-  <div class="modal">
+  <div class="modal modal-wider">
     <div class="modal-header">
       <h2 id="modalTitle">Новый вебинар</h2>
       <button class="icon-btn" id="modalClose">
@@ -10,7 +10,8 @@
     <form id="webinarForm">
       <input type="hidden" id="f_id">
       <div class="modal-body">
-        <div class="field-row field-row-quad">
+        <!-- 1 строка: Организатор, Дата вебинара, Спикер, Цена, ₽ -->
+        <div class="field-row field-row-quad" style="margin-bottom: 14px;">
           <div class="field" style="--fr-w:20%">
             <label for="f_organizer">Организатор</label>
             <select id="f_organizer" required></select>
@@ -50,11 +51,15 @@
             <input type="number" id="f_price" min="0" step="100" required>
           </div>
         </div>
-        <div class="field field-full">
+
+        <!-- 2 строка: Тема вебинара -->
+        <div class="field field-full" style="margin-bottom: 14px;">
           <label for="f_title">Тема вебинара <span class="hint">(сохранится в «кавычках» автоматически)</span></label>
-          <textarea id="f_title" required></textarea>
+          <textarea id="f_title" required style="resize: vertical; min-height: 80px;"></textarea>
         </div>
-        <div class="field-row field-row-quad">
+
+        <!-- 3 строка: Направление, Рассылка, Размещён на сайте, Входит в подписку -->
+        <div class="field-row field-row-quad" style="margin-bottom: 14px;">
           <div class="field" style="--fr-w:25%">
             <label for="f_direction"><i class="fa-solid fa-signs-post"></i> Направление</label>
             <select id="f_direction"></select>
@@ -106,7 +111,8 @@
             </div>
           </div>
         </div>
-        <div class="field field-full">
+
+        <div class="field field-full" style="margin-top: 14px;">
           <label for="f_link_participant">Ссылка для участников</label>
           <div class="input-with-btn">
             <input type="text" id="f_link_participant" placeholder="https://edu.vsesem.ru/2026/…">

@@ -176,8 +176,24 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
         $url = trim((string)($btn['url'] ?? '')) ?: '#';
         $iconKey = (string)($btn['icon'] ?? 'download');
         $iconClass = BUTTON_ICON_CLASSES[$iconKey]['class'] ?? BUTTON_ICON_CLASSES['download']['class'];
-        $rel = str_starts_with($url, 'http') ? ' rel="noopener noreferrer" target="_blank"' : '';
-        $buttonsHtml .= '<a class="btn js-download" href="' . landing_escape($url) . '"' . $rel . '>'
+        
+        $titleAttr = '';
+        $extraClass = '';
+        if ($url === '#') {
+            $extraClass = ' btn-disabled';
+            $tooltipText = '';
+            if (mb_strpos($label, 'запись') !== false || $iconKey === 'video') {
+                $tooltipText = (string)($landing['tooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.');
+            } elseif (mb_strpos($label, 'материалы') !== false || $iconKey === 'file') {
+                $tooltipText = (string)($landing['tooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.');
+            }
+            if ($tooltipText !== '') {
+                $titleAttr = ' data-tooltip="' . landing_escape($tooltipText) . '"';
+            }
+        }
+        
+        $rel = ($url !== '#' && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
+        $buttonsHtml .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . '>'
             . '<i class="' . landing_escape($iconClass) . '" aria-hidden="true"></i>' . landing_escape($label) . '</a>';
     }
 
@@ -204,15 +220,80 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
     .main { margin: clamp(24px, 4.4vw, 44px) auto 0; font-size: min({$titleFontPx}px, 9vw); line-height: 1.18; font-weight: 800; text-wrap: balance; text-shadow: 0 12px 30px rgba(0,0,0,.42); }
     .meta { margin: clamp(24px, 5vw, 46px) auto 0; width: min(980px, 100%); font-size: min({$metaFontPx}px, 5.4vw); line-height: 1.48; color: rgba(255,255,255,.97); text-shadow: 0 8px 22px rgba(0,0,0,.45); }
     .meta p { margin: 0; }
-    .terminal { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace; background: rgba(11,14,14,.46); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; display: inline-block; padding: 4px 10px; margin-left: 6px; white-space: nowrap; }
+    .terminal { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace; background: rgba(11,14,14,.46); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; display: inline-block; padding: 4px 12px; white-space: nowrap; }
     .support-link { color: #fff; text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,.62); font-weight: 700; }
     .support-link:hover { color: #96ecff; border-color: rgba(150,236,255,.85); }
-    .faq-link-row { margin-top: 6px !important; }
-    .faq-link { color: rgba(255,255,255,.86); text-decoration: none; font-size: 0.92em; border-bottom: 1px dashed rgba(255,255,255,.45); }
-    .faq-link:hover { color: #96ecff; border-color: rgba(150,236,255,.85); }
     .actions { margin-top: clamp(24px, 5vw, 42px); display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
     .btn { min-height: 56px; display: inline-flex; align-items: center; justify-content: center; padding: 0 26px; border-radius: 8px; font-weight: 700; font-size: min({$buttonFontPx}px, 4.8vw); text-decoration: none; border: 1px solid transparent; color: #fff; background: linear-gradient(135deg, {$theme['buttonStart']}, {$theme['buttonEnd']}); box-shadow: 0 12px 24px rgba(0,0,0,.28); transition: transform .2s ease, box-shadow .25s ease, background .25s ease; }
     .btn:hover { transform: translateY(-2px); box-shadow: 0 16px 30px rgba(0,0,0,.34); background: linear-gradient(135deg, {$theme['hoverStart']}, {$theme['hoverEnd']}); }
+    .btn.btn-disabled { background: #7a7a7a !important; cursor: not-allowed; box-shadow: none !important; opacity: 0.85; position: relative; }
+    .btn.btn-disabled:hover { transform: none !important; box-shadow: none !important; background: #7a7a7a !important; }
+    
+    /* Beautiful CSS Tooltip */
+    .btn.btn-disabled[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: rgba(18, 22, 23, 0.96);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.45;
+      width: 280px;
+      text-align: center;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.14);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 999;
+      font-family: "Montserrat", sans-serif;
+    }
+    .btn.btn-disabled[data-tooltip]::before {
+      content: "";
+      position: absolute;
+      bottom: 115%;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      border-width: 6px;
+      border-style: solid;
+      border-color: rgba(18, 22, 23, 0.96) transparent transparent transparent;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 999;
+    }
+    .btn.btn-disabled[data-tooltip]:hover::after,
+    .btn.btn-disabled[data-tooltip]:hover::before {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    
+    @keyframes pulse-play {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    @keyframes wiggle-video {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg); }
+      75% { transform: rotate(8deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes bounce-file {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+      100% { transform: translateY(0); }
+    }
+    
+    .btn:not(.btn-disabled) .fa-circle-play { display: inline-block; animation: pulse-play 2s infinite ease-in-out; }
+    .btn:not(.btn-disabled) .fa-video { display: inline-block; animation: wiggle-video 2.5s infinite ease-in-out; }
+    .btn:not(.btn-disabled) .fa-file-lines { display: inline-block; animation: bounce-file 2s infinite ease-in-out; }
+
     .btn i { margin-right: 10px; }
     .bottom { width: min({$contentPx}px, 94vw); margin: 0 auto; padding: 12px 0 18px; text-align: center; font-size: {$footerFontPx}px; color: rgba(255,255,255,.76); }
     @keyframes up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -230,14 +311,11 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
       <section class="center" aria-label="Информация о вебинаре">
         <p class="kicker">ВЕБИНАР {$webinarDateTime}</p>
         <h1 class="main">{$title}</h1>
-        <section class="meta" aria-label="Технические требования">
-          <p>{$safeBrowser}<span class="terminal">{$safePorts}</span></p>
-          <p class="faq-link-row"><a class="faq-link" href="https://vsesem.ru/bbb/vsesem_faq.pdf" target="_blank" rel="noopener">Подробнее о тех. требованиях →</a></p>
+        <section class="meta" aria-label="Технические требования и поддержка">
+          <p>{$safeBrowser} {$safePorts}</p>
+          <p style="margin-top: 12px;"><span class="terminal">{$supportText} <a class="support-link" href="{$supportHref}">{$supportPhone}</a></span></p>
         </section>
         <section class="actions" aria-label="Скачивание материалов">{$buttonsHtml}</section>
-        <section class="meta" aria-label="Техническая поддержка">
-          <p>{$supportText} <a class="support-link" href="{$supportHref}">{$supportPhone}</a> {$supportSchedule}</p>
-        </section>
       </section>
     </main>
     <footer class="bottom">

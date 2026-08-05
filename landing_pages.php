@@ -93,7 +93,13 @@ function lp_build_buttons(array $webinar): array {
     $buttons = [];
     foreach (CANONICAL_BUTTONS as $def) {
         $url = trim((string)($webinar[$def['field']] ?? ''));
-        if ($url === '') continue;
+        if ($url === '') {
+            if ($def['field'] === 'link_recording' || $def['field'] === 'link_materials') {
+                $url = '#';
+            } else {
+                continue;
+            }
+        }
         $buttons[] = ['label' => $def['label'], 'url' => $url, 'icon' => $def['icon']];
     }
     return $buttons;
@@ -107,7 +113,9 @@ function lp_static_text_fields(): array {
         'supportText'     => $settings['landingSupportText'] ?? 'Техническая поддержка',
         'supportPhone'    => $settings['landingSupportPhone'] ?? '+7 910 154 76 86',
         'supportSchedule' => $settings['landingSupportSchedule'] ?? '(гарантируется только в день вебинара с 10:00 до 15:00)',
-        'browserText'     => $settings['landingBrowserText'] ?? 'Используйте браузеры Yandex Browser / Google Chrome / Firefox последней версии.',
+        'browserText'     => $settings['landingBrowserText'] ?? 'Используйте браузеры Yandex-Браузер / Google Chrome / Chromium / Firefox.',
+        'tooltipRecording' => $settings['landingTooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.',
+        'tooltipMaterials' => $settings['landingTooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.',
         'footerText'      => $settings['landingFooterText'] ?? '© 2026 Страница создана по материалам вебинара',
     ];
 }
@@ -126,14 +134,14 @@ function lp_normalize_segments(string $path): array {
     return $segments;
 }
 
-function lp_generate_file_id(string $targetDir): string {
+function lp_generate_file_id(string $targetDir, int $length = 6): string {
     $chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     for ($attempt = 0; $attempt < 20; $attempt++) {
         $id = '';
-        for ($i = 0; $i < 6; $i++) $id .= $chars[random_int(0, strlen($chars) - 1)];
+        for ($i = 0; $i < $length; $i++) $id .= $chars[random_int(0, strlen($chars) - 1)];
         if (!is_file(rtrim($targetDir, '/') . '/' . $id . '.html')) return $id;
     }
-    return substr(bin2hex(random_bytes(4)), 0, 6);
+    return substr(bin2hex(random_bytes($length)), 0, $length);
 }
 
 /** Находит вебинар по id, возвращает [индекс, строка] или [null, null]. */
@@ -238,7 +246,11 @@ try {
         $oldFileName = $clean['generatedFileName'];
         $fileName = $oldFileName;
         if ($fileName === '' || $forceNewName || !is_file($targetDir . '/' . $fileName)) {
-            $fileName = lp_generate_file_id($targetDir) . '.html';
+            $linkLength = (int)($settings['landingLinkLength'] ?? 6);
+            if ($linkLength < 4 || $linkLength > 32) {
+                $linkLength = 6;
+            }
+            $fileName = lp_generate_file_id($targetDir, $linkLength) . '.html';
         }
         $fullPath = rtrim($targetDir, '/') . '/' . $fileName;
 
