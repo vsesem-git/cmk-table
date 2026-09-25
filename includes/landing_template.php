@@ -11,9 +11,9 @@ declare(strict_types=1);
 const TEMPLATE_VERSION = '2.1.0';
 
 const THEME_PRESETS = [
-    // Дизайн «КОДЕКС» — точная копия стилей эталонной страницы (Jost, display-2 3rem,
-    // кнопки btn-success/btn-white без иконок). Рендерится отдельной функцией
-    // render_landing_html_kodex(); overlay*/button* здесь — только для совместимости структуры.
+    // Дизайн «КОДЕКС» — стили эталонной страницы (Jost, display-2, кнопки #40b0bf).
+    // Рендерится отдельной функцией render_landing_html_kodex() с полным редактированием
+    // (шрифты/ширина/фон/интенсивность — из конструктора, как у классических тем).
     'kodex' => [
         'label' => 'КОДЕКС',
         'overlayStart' => 'rgba(0, 0, 0, 0)', 'overlayEnd' => 'rgba(0, 0, 0, 0)',
@@ -350,14 +350,18 @@ HTML;
 }
 
 /**
- * Дизайн «КОДЕКС» — точная копия стилей эталонной страницы
- * edu.vsesem.ru/2026/1lzl.html (согласованный прототип kodex/index.html):
- *   - шрифт Jost, display-2 = 3rem/1.1, display-7 = 1.2rem;
- *   - кнопки без иконок: рабочие — btn-success (#40b0bf), disabled «#» — btn-white (#fafafa);
- *   - полноэкранный фон (картинка страницы + фон-эталон), без футера и оверлея;
- *   - слайдеры кеглей/ширины и интенсивность фона не применяются — только фон-картинка.
+ * Дизайн «КОДЕКС» — стили эталонной страницы edu.vsesem.ru/2026/1lzl.html
+ * (согласованный прототип kodex/index.html), но с полным редактированием,
+ * как у классического шаблона:
+ *   - размеры шрифтов, ширина блока темы, фон-картинка и интенсивность заливки
+ *     берутся из конструктора (fallback = вид прототипа: 48/48/19/18, заливка 0%);
+ *   - кнопки собираются тем же конвейером, что и в классике: иконки из настроек,
+ *     цвета темы (#40b0bf), неактивные «#» — серые с всплывающей подсказкой;
+ *   - футер не выводится (эталон его не имеет) — слайдер «Футер» скрыт в UI.
  */
 function render_landing_html_kodex(array $webinar, array $landing, string $fileName): string {
+    $theme = THEME_PRESETS['kodex'];
+
     $title = landing_nl2br((string)($webinar['title'] ?? 'Вебинар'));
     $title = str_replace(':', ':<br>', $title); // авто-перенос после двоеточия — как в классическом шаблоне
     $pageTitle = landing_escape(
@@ -374,23 +378,54 @@ function render_landing_html_kodex(array $webinar, array $landing, string $fileN
     $supportText  = landing_escape((string)($landing['supportText'] ?? '') ?: 'Техническая поддержка');
     $supportPhone = landing_escape((string)($landing['supportPhone'] ?? '') ?: '+7 910 154 76 86');
 
+    // Слайдеры конструктора; fallback = вид согласованного прототипа.
+    $dateFontPx   = landing_clamp((int)($landing['dateFontPx'] ?? 0), 12, 72, 48);
+    $titleFontPx  = landing_clamp((int)($landing['titleFontPx'] ?? 0), 14, 96, 48);
+    $metaFontPx   = landing_clamp((int)($landing['metaFontPx'] ?? 0), 12, 48, 19);
+    $buttonFontPx = landing_clamp((int)($landing['buttonFontPx'] ?? 0), 12, 40, 18);
+
+    $titleWidthPct = landing_clamp((int)($landing['titleWidthPct'] ?? 100), 100, 200, 100);
+    $centerPx = (int)round(1400 * $titleWidthPct / 100);
+
+    // Интенсивность заливки: 0 = вид прототипа (без затемнения), 100 = сильное.
+    $intensity = landing_clamp((int)($landing['backgroundIntensity'] ?? 0), 0, 100, 0);
+    $overlayOpacity = number_format(0.65 * $intensity / 100, 3, '.', '');
+
     // Фон: картинка из конструктора (если задана) поверх эталонного фона КОДЕКС.
-    $defaultBg = (string)THEME_PRESETS['kodex']['baseImage'];
+    $defaultBg = (string)$theme['baseImage'];
     $customBg  = str_replace(['"', "'", '\\', "\n", "\r"], '', trim((string)($landing['backgroundImage'] ?? '')));
     $bgImages  = $customBg !== ''
         ? 'url("' . $customBg . '"), url("' . $defaultBg . '")'
         : 'url("' . $defaultBg . '")';
 
+    // Кнопки — тем же конвейером, что и в классическом шаблоне
+    // (иконки, цвета темы, серые неактивные с подсказкой из настроек).
     $buttonsHtml = '';
     foreach ((is_array($landing['buttons'] ?? null) ? $landing['buttons'] : []) as $btn) {
         $label = trim((string)($btn['label'] ?? ''));
         if ($label === '') continue;
         $url = trim((string)($btn['url'] ?? '')) ?: '#';
-        $isDisabled = ($url === '#');
-        $class = $isDisabled ? 'btn btn-white display-4' : 'btn btn-success display-4';
-        $rel = (!$isDisabled && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
-        $buttonsHtml .= '<a class="' . $class . '" href="' . landing_escape($url) . '"' . $rel . '>'
-            . landing_escape($label) . '</a>';
+        $iconKey = (string)($btn['icon'] ?? 'download');
+        $iconClass = BUTTON_ICON_CLASSES[$iconKey]['class'] ?? BUTTON_ICON_CLASSES['download']['class'];
+
+        $titleAttr = '';
+        $extraClass = '';
+        if ($url === '#') {
+            $extraClass = ' btn-disabled';
+            $tooltipText = '';
+            if (mb_strpos($label, 'запись') !== false || $iconKey === 'video') {
+                $tooltipText = (string)($landing['tooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.');
+            } elseif (mb_strpos($label, 'материалы') !== false || $iconKey === 'file') {
+                $tooltipText = (string)($landing['tooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.');
+            }
+            if ($tooltipText !== '') {
+                $titleAttr = ' data-tooltip="' . landing_escape($tooltipText) . '"';
+            }
+        }
+
+        $rel = ($url !== '#' && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
+        $buttonsHtml .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . '>'
+            . '<i class="' . landing_escape($iconClass) . '" aria-hidden="true"></i>' . landing_escape($label) . '</a>';
     }
 
     return <<<HTML
@@ -499,113 +534,163 @@ function render_landing_html_kodex(array $webinar, array $landing, string $fileN
       font-size: 0;
     }
 
-    /* ---------- mbr-additional.css subset ---------- */
+    /* ---------- кнопки: как в классическом шаблоне (цвета темы КОДЕКС) ---------- */
     .btn {
       font-family: 'Jost', sans-serif;
-      font-size: 1.1rem;
-      line-height: 1.5;
-      font-weight: 600;
+      min-height: 56px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0.6rem 1.2rem;
+      padding: 0 26px;
       margin: 0.6rem 0.6rem;
-      border: 2px solid transparent;
-      border-radius: 4px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: min({$buttonFontPx}px, 4.8vw);
+      line-height: 1.3;
+      text-decoration: none;
+      border: 1px solid transparent;
+      color: #fff;
+      background: linear-gradient(135deg, {$theme['buttonStart']}, {$theme['buttonEnd']});
+      box-shadow: 0 12px 24px rgba(0, 0, 0, .28);
       white-space: normal;
       word-break: break-word;
-      text-decoration: none;
-      transition: all 0.2s ease-in-out;
       cursor: pointer;
+      transition: transform .2s ease, box-shadow .25s ease, background .25s ease;
     }
-    .btn-success,
-    .btn-success:active {
-      background-color: #40b0bf !important;
-      border-color: #40b0bf !important;
-      color: #ffffff !important;
-      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.2);
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 30px rgba(0, 0, 0, .34);
+      background: linear-gradient(135deg, {$theme['hoverStart']}, {$theme['hoverEnd']});
     }
-    .btn-success:hover,
-    .btn-success:focus {
-      color: #ffffff !important;
-      background-color: #2a747e !important;
-      border-color: #2a747e !important;
-      box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2);
+    .btn.btn-disabled {
+      background: #7a7a7a !important;
+      cursor: not-allowed;
+      box-shadow: none !important;
+      opacity: .85;
+      position: relative;
     }
-    .btn-white,
-    .btn-white:active {
-      background-color: #fafafa !important;
-      border-color: #fafafa !important;
-      color: #7a7a7a !important;
-      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.2);
-    }
-    .btn-white:hover,
-    .btn-white:focus {
-      color: #4f4f4f !important;
-      background-color: #cfcfcf !important;
-      border-color: #cfcfcf !important;
-      box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2);
+    .btn.btn-disabled:hover {
+      transform: none !important;
+      box-shadow: none !important;
+      background: #7a7a7a !important;
     }
 
-    /* display typography */
+    /* Всплывающая подсказка на неактивных кнопках */
+    .btn.btn-disabled[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: rgba(18, 22, 23, 0.96);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.45;
+      width: 280px;
+      text-align: center;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 999;
+      font-family: 'Jost', sans-serif;
+    }
+    .btn.btn-disabled[data-tooltip]::before {
+      content: "";
+      position: absolute;
+      bottom: 115%;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      border-width: 6px;
+      border-style: solid;
+      border-color: rgba(18, 22, 23, 0.96) transparent transparent transparent;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 999;
+    }
+    .btn.btn-disabled[data-tooltip]:hover::after,
+    .btn.btn-disabled[data-tooltip]:hover::before {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Анимации иконок */
+    @keyframes pulse-play {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    @keyframes wiggle-video {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg); }
+      75% { transform: rotate(8deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes bounce-file {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+      100% { transform: translateY(0); }
+    }
+    .btn:not(.btn-disabled) .fa-circle-play { display: inline-block; animation: pulse-play 2s infinite ease-in-out; }
+    .btn:not(.btn-disabled) .fa-video { display: inline-block; animation: wiggle-video 2.5s infinite ease-in-out; }
+    .btn:not(.btn-disabled) .fa-file-lines { display: inline-block; animation: bounce-file 2s infinite ease-in-out; }
+    .btn i { margin-right: 10px; }
+
+    /* display typography (база; размеры задаются слайдерами ниже) */
     .display-1 { font-family: 'Jost', sans-serif; font-size: 4.6rem; line-height: 1.1; }
     .display-2 { font-family: 'Jost', sans-serif; font-size: 3rem;   line-height: 1.1; }
     .display-4 { font-family: 'Jost', sans-serif; font-size: 1.1rem; line-height: 1.5; }
     .display-5 { font-family: 'Jost', sans-serif; font-size: 2rem;   line-height: 1.5; }
     .display-7 { font-family: 'Jost', sans-serif; font-size: 1.2rem; line-height: 1.5; }
 
-    /* fluid typography (mobile), as on the reference page */
-    @media (max-width: 992px) {
-      .display-1 { font-size: 3.68rem; }
-    }
-    @media (max-width: 768px) {
-      .display-1 {
-        font-size: calc(2.26rem + (4.6 - 2.26) * ((100vw - 20rem) / (48 - 20)));
-        line-height: calc(1.1 * (2.26rem + (4.6 - 2.26) * ((100vw - 20rem) / (48 - 20))));
-      }
-      .display-2 {
-        font-size: calc(1.7rem + (3 - 1.7) * ((100vw - 20rem) / (48 - 20)));
-        line-height: calc(1.3 * (1.7rem + (3 - 1.7) * ((100vw - 20rem) / (48 - 20))));
-      }
-      .display-4 {
-        font-size: calc(1.0350000000000001rem + (1.1 - 1.0350000000000001) * ((100vw - 20rem) / (48 - 20)));
-        line-height: calc(1.4 * (1.0350000000000001rem + (1.1 - 1.0350000000000001) * ((100vw - 20rem) / (48 - 20))));
-      }
-      .display-5 {
-        font-size: calc(1.35rem + (2 - 1.35) * ((100vw - 20rem) / (48 - 20)));
-        line-height: calc(1.4 * (1.35rem + (2 - 1.35) * ((100vw - 20rem) / (48 - 20))));
-      }
-      .display-7 {
-        font-size: calc(1.07rem + (1.2 - 1.07) * ((100vw - 20rem) / (48 - 20)));
-        line-height: calc(1.4 * (1.07rem + (1.2 - 1.07) * ((100vw - 20rem) / (48 - 20))));
-      }
-    }
+    /* Размеры из слайдеров конструктора (min() бережно уменьшает на мобильных) */
+    .kodex-hero .kodex-kicker { font-size: min({$dateFontPx}px, 11vw); line-height: 1.1; }
+    .kodex-hero .kodex-title  { font-size: min({$titleFontPx}px, 9vw);  line-height: 1.1; }
+    .kodex-hero .kodex-meta   { font-size: min({$metaFontPx}px, 5.4vw); line-height: 1.5; }
 
-    /* ---------- фон КОДЕКС ---------- */
+    /* ---------- фон, затемнение и ширина блока (из конструктора) ---------- */
     .kodex-hero {
       background-color: #241b14;
       background-image: {$bgImages};
     }
+    .kodex-overlay {
+      position: absolute;
+      left: 0; right: 0; top: 0; bottom: 0;
+      background: #000;
+      opacity: {$overlayOpacity};
+      pointer-events: none;
+    }
+    .kodex-copy { width: min({$centerPx}px, 100%); margin: 0 auto; }
   </style>
 </head>
 <body>
   <!-- Шаблон КОДЕКС -->
   <section class="kodex-hero mbr-fullscreen mbr-parallax-background">
+    <div class="kodex-overlay"></div>
     <div class="align-center container-fluid">
       <div class="row justify-content-center">
         <div class="col-12 col-lg-12">
-          <h1 class="mbr-section-title mbr-fonts-style mbr-white mb-3 display-2"><strong>ВЕБИНАР {$webinarDateTime}</strong><div><br></div></h1>
-          <h2 class="mbr-section-subtitle mbr-fonts-style mbr-white mb-3 display-2"><strong>{$title}</strong><strong>&nbsp;</strong><div><div><div><div><div><div><div><div><div><strong><br></strong></div></div></div></div></div></div></div></div></div></h2>
-          <p class="mbr-text mbr-fonts-style mbr-white display-7">{$safeBrowser} {$safePorts}<br>{$supportText} {$supportPhone}&nbsp;</p>
-          <div class="mbr-section-btn mt-3">{$buttonsHtml}</div>
+          <div class="kodex-copy">
+            <h1 class="mbr-section-title mbr-fonts-style mbr-white mb-3 display-2 kodex-kicker"><strong>ВЕБИНАР {$webinarDateTime}</strong><div><br></div></h1>
+            <h2 class="mbr-section-subtitle mbr-fonts-style mbr-white mb-3 display-2 kodex-title"><strong>{$title}</strong><strong>&nbsp;</strong><div><div><div><div><div><div><div><div><div><strong><br></strong></div></div></div></div></div></div></div></div></div></h2>
+            <p class="mbr-text mbr-fonts-style mbr-white display-7 kodex-meta">{$safeBrowser} {$safePorts}<br>{$supportText} {$supportPhone}&nbsp;</p>
+            <div class="mbr-section-btn mt-3">{$buttonsHtml}</div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <script>
-    document.querySelectorAll('a[href="#"]').forEach(function (link) {
-      link.addEventListener('click', function (event) { event.preventDefault(); });
+    document.querySelectorAll('.js-download').forEach(function (link) {
+      if (link.getAttribute('href') === '#') {
+        link.addEventListener('click', function (event) { event.preventDefault(); });
+      }
     });
   </script>
 </body>

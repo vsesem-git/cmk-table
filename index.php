@@ -26,6 +26,7 @@ require __DIR__ . '/partials/modal_webinar.php';
 require __DIR__ . '/partials/modal_settings.php';
 require __DIR__ . '/partials/modal_landing.php';
 require __DIR__ . '/partials/modal_bulk_edit.php';
+require __DIR__ . '/partials/modal_bulk_add.php';
 require __DIR__ . '/partials/modal_crm_fields.php';
 require __DIR__ . '/partials/modal_send_export.php';
 require __DIR__ . '/partials/modal_contract_gen.php';

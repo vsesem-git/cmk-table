@@ -48,7 +48,9 @@ function respond_lp(bool $ok, $data = null, string $error = ''): void {
 
 function lp_clamp_int($value, int $min, int $max, int $fallback): int {
     $v = is_numeric($value) ? (int)$value : 0;
-    if ($v <= 0) $v = $fallback;
+    // «0 = не задано» — только когда 0 вне допустимого диапазона (шрифты и т.п.).
+    // Для полей с min=0 (интенсивность заливки) нулевое значение валидно и сохраняется.
+    if ($v <= 0 && $min > 0) $v = $fallback;
     return max($min, min($max, $v));
 }
 
@@ -82,7 +84,7 @@ function lp_sanitize_design(array $in): array {
         'buttonFontPx'         => lp_clamp_int($in['buttonFontPx'] ?? null, 12, 40, 16),
         'footerFontPx'         => lp_clamp_int($in['footerFontPx'] ?? null, 10, 30, 14),
         'backgroundImage'      => trim((string)($in['backgroundImage'] ?? '')),
-        'backgroundIntensity'  => lp_clamp_int($in['backgroundIntensity'] ?? null, 0, 100, 100),
+        'backgroundIntensity'  => lp_clamp_int($in['backgroundIntensity'] ?? 100, 0, 100, 100),
         'titleWidthPct'        => lp_clamp_int($in['titleWidthPct'] ?? null, 100, 200, 100),
         'customButtons'        => lp_sanitize_custom_buttons($in['customButtons'] ?? []),
     ];

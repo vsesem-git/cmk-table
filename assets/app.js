@@ -132,10 +132,15 @@
   let saveSettingsTimer = null;
   function saveSettings() {
     clearTimeout(saveSettingsTimer);
-    saveSettingsTimer = setTimeout(async () => {
-      try { await fetch(SETTINGS_API, { method: 'POST', body: JSON.stringify(settings) }); }
-      catch (e) { /* сеть недоступна — настройки останутся только локально до следующей попытки */ }
-    }, 350);
+    // Возвращаем Promise, который резолвится после фактической отправки —
+    // чтобы `await saveSettings()` действительно ждал сохранение.
+    return new Promise(resolve => {
+      saveSettingsTimer = setTimeout(async () => {
+        try { await fetch(SETTINGS_API, { method: 'POST', body: JSON.stringify(settings) }); }
+        catch (e) { /* сеть недоступна — настройки останутся только локально до следующей попытки */ }
+        resolve();
+      }, 350);
+    });
   }
 
   function effectiveWidthPx(col) {
@@ -753,7 +758,12 @@
 
   // ---------- Search / reset ----------
 
-  $('#searchInput').addEventListener('input', e => { search = e.target.value.trim(); renderAll(); });
+  let searchDebounceTimer = null;
+  $('#searchInput').addEventListener('input', e => {
+    const value = e.target.value.trim();
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => { search = value; renderAll(); }, 150);
+  });
   $('#resetFiltersBtn').addEventListener('click', () => { filters = {}; persistFilters(); renderAll(); });
 
   // ---------- Modal / CRUD ----------
@@ -2392,6 +2402,11 @@
   let landingFontSizes = {};
   FONT_SLIDERS.forEach(s => { landingFontSizes[s.key] = s.def; });
 
+  // Дефолты дизайнов: КОДЕКС — вид согласованного прототипа (крупный заголовок,
+  // без затемнения фона); классические темы — привычные значения.
+  const KODEX_DESIGN_DEFAULTS = { fonts: { dateFontPx: 48, titleFontPx: 48, metaFontPx: 19, buttonFontPx: 18, footerFontPx: 14 }, intensity: 0 };
+  const CLASSIC_DESIGN_DEFAULTS = { fonts: { dateFontPx: 54, titleFontPx: 46, metaFontPx: 17, buttonFontPx: 16, footerFontPx: 14 }, intensity: 100 };
+
   // Поля вебинара, из которых собираются автоматические кнопки на странице участника.
   const BUTTON_SOURCE_FIELDS = [
     { field: 'link_host',      label: 'Смотреть онлайн',            fromLabel: 'Ссылка для организатора / лектора' },
@@ -2408,6 +2423,17 @@
   function collapseAllAccordions() {
     $$('.accordion').forEach(a => a.classList.remove('open'));
   }
+
+  // ---------- Esc: закрывает верхнее открытое модальное окно ----------
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const open = $$('.modal-overlay').filter(el => el.style.display !== 'none' && el.style.display !== '');
+    if (!open.length) return;
+    const top = open[open.length - 1];
+    const closeBtn = top.querySelector('.modal-header .icon-btn');
+    if (closeBtn) closeBtn.click();
+    else top.style.display = 'none';
+  });
 
   async function loadLandingMeta() {
     try {
@@ -2433,14 +2459,25 @@
       </div>
     `).join('');
     $$('#lp_themeGrid .landing-theme-item').forEach(el => el.addEventListener('click', () => {
-      landingThemeKey = el.dataset.theme;
+      const next = el.dataset.theme;
+      // Переключение на/с КОДЕКС подгружает дизайн-дефолты этого дизайна.
+      if (next !== landingThemeKey && (next === 'kodex' || landingThemeKey === 'kodex')) {
+        const d = next === 'kodex' ? KODEX_DESIGN_DEFAULTS : CLASSIC_DESIGN_DEFAULTS;
+        Object.assign(landingFontSizes, d.fonts);
+        landingBackgroundIntensity = d.intensity;
+        $('#lp_backgroundIntensity').value = d.intensity;
+        $('#lp_backgroundIntensityVal').textContent = `${d.intensity}%`;
+      }
+      landingThemeKey = next;
       renderThemeGrid();
+      renderSlidersGrid();
     }));
   }
 
   function renderSlidersGrid() {
     let html = '';
     FONT_SLIDERS.forEach(s => {
+      if (s.key === 'footerFontPx' && landingThemeKey === 'kodex') return; // у КОДЕКС нет футера
       html += `
         <div class="landing-slider-row">
           <span>${s.label}</span>
@@ -2725,14 +2762,25 @@
       </div>
     `).join('');
     $$('#bulk_lp_themeGrid .landing-theme-item').forEach(el => el.addEventListener('click', () => {
-      bulkThemeKey = el.dataset.bulktheme;
+      const next = el.dataset.bulktheme;
+      // Переключение на/с КОДЕКС подгружает дизайн-дефолты этого дизайна.
+      if (next !== bulkThemeKey && (next === 'kodex' || bulkThemeKey === 'kodex')) {
+        const d = next === 'kodex' ? KODEX_DESIGN_DEFAULTS : CLASSIC_DESIGN_DEFAULTS;
+        Object.assign(bulkFontSizes, d.fonts);
+        bulkBackgroundIntensity = d.intensity;
+        $('#bulk_lp_backgroundIntensity').value = d.intensity;
+        $('#bulk_lp_backgroundIntensityVal').textContent = `${d.intensity}%`;
+      }
+      bulkThemeKey = next;
       renderBulkThemeGrid();
+      renderBulkSlidersGrid();
     }));
   }
 
   function renderBulkSlidersGrid() {
     let html = '';
     FONT_SLIDERS.forEach(s => {
+      if (s.key === 'footerFontPx' && bulkThemeKey === 'kodex') return; // у КОДЕКС нет футера
       html += `
         <div class="landing-slider-row">
           <span>${s.label}</span>
@@ -3130,6 +3178,36 @@
 
     const btn = $('#bulk_lp_generateBtn');
     btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохраняем строки…';
+
+    // Сначала сохраняем правки строк (тема/ссылки/код) — иначе страницы
+    // сгенерируются по старым данным реестра, а не по данным из таблицы.
+    let saveFail = 0;
+    for (const tr of trs) {
+      const rowId = Number(tr.dataset.bulkId);
+      const original = rows.find(r => Number(r.id) === Number(rowId));
+      if (!original) continue;
+      const payload = { ...original };
+      payload.title = tr.querySelector('[data-bulk-field="title"]').value.trim();
+      payload.link_participant = tr.querySelector('[data-bulk-field="link_participant"]').value.trim();
+      payload.link_host = tr.querySelector('[data-bulk-field="link_host"]').value.trim();
+      payload.moderator_code = tr.querySelector('[data-bulk-field="moderator_code"]').value.trim();
+      payload.link_materials = tr.querySelector('[data-bulk-field="link_materials"]').value.trim();
+      payload.link_recording = tr.querySelector('[data-bulk-field="link_recording"]').value.trim();
+      try {
+        const res = await fetch(API, { method: 'PUT', body: JSON.stringify({ id: rowId, ...payload }) });
+        const json = await res.json();
+        if (!json.ok) saveFail++;
+      } catch (e) { saveFail++; }
+    }
+    if (saveFail) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Сгенерировать страницы';
+      showToast(`Не удалось сохранить строк: ${saveFail} — генерация остановлена`, true);
+      return;
+    }
+    await loadRows();
+
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выполняется…';
 
     let successCount = 0;
@@ -3164,6 +3242,212 @@
       showToast(`Сгенерировано страниц участников: ${successCount}`);
     } else {
       showToast(`Сгенерировано: ${successCount}, ошибок: ${failCount}`, true);
+    }
+  });
+
+  // ---------- Массовое добавление вебинаров ----------
+  const bulkAddOverlay = $('#bulkAddOverlay');
+
+  function baSelectHtml(field, list, selected) {
+    const opts = ['<option value="">—</option>'].concat(
+      (list || []).map(o => `<option value="${escapeHtml(o.name)}" ${o.name === selected ? 'selected' : ''}>${escapeHtml(o.name)}</option>`)
+    ).join('');
+    return `<select data-ba-field="${field}" style="width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:12.5px; background:#fff;">${opts}</select>`;
+  }
+
+  function baInputHtml(field, value, placeholder, type) {
+    return `<input type="${type || 'text'}" data-ba-field="${field}" value="${escapeHtml(value || '')}" placeholder="${escapeHtml(placeholder || '')}" style="width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:12.5px; background:#fff;">`;
+  }
+
+  function renderBulkAddHead() {
+    const cols = [
+      { label: '№', w: '40px' },
+      { label: 'Дата *', w: '132px' },
+      { label: 'Тема *', w: '250px' },
+      { label: 'Организатор', w: '150px' },
+      { label: 'Спикер', w: '160px' },
+      { label: 'Цена, ₽ *', w: '96px' },
+      { label: 'Направление', w: '145px' },
+      { label: 'Рассылка (через запятую)', w: '175px' },
+      { label: 'Размещён на сайте', w: '145px' },
+      { label: 'Входит в подписку', w: '145px' },
+      { label: 'Ссылка для участников', w: '200px' },
+      { label: 'Ссылка для организатора / лектора', w: '210px' },
+      { label: 'Код модератора', w: '105px' },
+      { label: 'Ссылка на материалы', w: '195px' },
+      { label: 'Ссылка на запись', w: '195px' },
+    ];
+    customColumns.forEach(c => cols.push({ label: c.label, w: '150px' }));
+    cols.push({ label: '', w: '46px' });
+    $('#bulkAddTableHead').innerHTML = `<tr>${cols.map(c =>
+      `<th style="padding:8px 10px; text-align:left; font-size:12px; font-weight:600; color:#6b7280; border-bottom:1px solid var(--line); background:#f4f7fa; width:${c.w}; position:sticky; top:0; z-index:1;">${escapeHtml(c.label)}</th>`
+    ).join('')}</tr>`;
+  }
+
+  function bulkAddRowHtml(idx, preset) {
+    const p = preset || {};
+    const td = inner => `<td style="padding:6px 8px; vertical-align:top; border-bottom:1px solid var(--line);">${inner}</td>`;
+    const cs = 'width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:12.5px; background:#fff;';
+    let html = '<tr data-ba-row>';
+    html += td(`<span style="font-weight:700; color:#9aa3af; font-size:12px;">${idx}</span>`);
+    html += td(`<input type="date" data-ba-field="date" value="${escapeHtml(p.date || '')}" style="${cs}">`);
+    html += td(`<textarea data-ba-field="title" placeholder="Тема вебинара" style="${cs} height:34px; resize:vertical; line-height:1.3;">${escapeHtml(p.title || '')}</textarea>`);
+    html += td(baSelectHtml('organizer', organizersList, p.organizer !== undefined ? p.organizer : (organizersList[0] ? organizersList[0].name : '')));
+    html += td(baSelectHtml('speaker', speakersList, p.speaker || ''));
+    html += td(baInputHtml('price', p.price, '0', 'number'));
+    html += td(baSelectHtml('direction', directionsList, p.direction || ''));
+    html += td(baInputHtml('mailing_list', p.mailing_list, 'через запятую'));
+    html += td(baSelectHtml('published_on_site', publishedOnSiteList, p.published_on_site || ''));
+    html += td(baSelectHtml('subscription', subscriptionList, p.subscription || ''));
+    html += td(baInputHtml('link_participant', p.link_participant, 'https://…'));
+    html += td(baInputHtml('link_host', p.link_host, 'https://…'));
+    html += td(baInputHtml('moderator_code', p.moderator_code, '1600'));
+    html += td(baInputHtml('link_materials', p.link_materials, 'https://…'));
+    html += td(baInputHtml('link_recording', p.link_recording, 'https://…'));
+    customColumns.forEach(c => {
+      const val = p[c.key] || '';
+      if (c.type === 'boolean') {
+        html += td(`<label style="display:flex; align-items:center; justify-content:center; min-height:30px;"><input type="checkbox" data-ba-custom="${escapeHtml(c.key)}" data-ba-type="boolean" ${val === '1' ? 'checked' : ''}></label>`);
+      } else {
+        html += td(`<input type="text" data-ba-custom="${escapeHtml(c.key)}" value="${escapeHtml(val)}" placeholder="${escapeHtml(c.label)}" style="${cs}">`);
+      }
+    });
+    html += td('<button type="button" class="btn btn-ghost" data-ba-del title="Удалить строку" style="padding:4px 9px; height:26px; font-size:11px;"><i class="fa-solid fa-trash"></i></button>');
+    html += '</tr>';
+    return html;
+  }
+
+  function lastBulkAddPreset() {
+    const trs = $$('#bulkAddTableBody tr');
+    if (!trs.length) return {};
+    const last = trs[trs.length - 1];
+    const get = f => { const el = last.querySelector(`[data-ba-field="${f}"]`); return el ? el.value : ''; };
+    return {
+      organizer: get('organizer'),
+      direction: get('direction'),
+      published_on_site: get('published_on_site'),
+      subscription: get('subscription'),
+    };
+  }
+
+  function updateBulkAddRowCount() {
+    const el = $('#bulkAddRowCount');
+    if (el) el.textContent = `Строк: ${$$('#bulkAddTableBody tr').length}`;
+  }
+
+  function addBulkAddRow(preset) {
+    const idx = $$('#bulkAddTableBody tr').length + 1;
+    $('#bulkAddTableBody').insertAdjacentHTML('beforeend', bulkAddRowHtml(idx, preset));
+    updateBulkAddRowCount();
+  }
+
+  function openBulkAddModal() {
+    $('#bulkAddStatus').innerHTML = '';
+    renderBulkAddHead();
+    $('#bulkAddTableBody').innerHTML = '';
+    addBulkAddRow(organizersList[0] ? { organizer: organizersList[0].name } : {});
+    addBulkAddRow(lastBulkAddPreset());
+    addBulkAddRow(lastBulkAddPreset());
+    bulkAddOverlay.style.display = 'flex';
+  }
+
+  $('#bulkAddBtn').addEventListener('click', openBulkAddModal);
+  $('#bulkAddClose').addEventListener('click', () => { bulkAddOverlay.style.display = 'none'; });
+  $('#bulkAddCancelBtn').addEventListener('click', () => { bulkAddOverlay.style.display = 'none'; });
+  $('#bulkAddRowBtn').addEventListener('click', () => addBulkAddRow(lastBulkAddPreset()));
+
+  $('#bulkAddTableBody').addEventListener('click', e => {
+    if (!e.target.closest('[data-ba-del]')) return;
+    const trs = $$('#bulkAddTableBody tr');
+    if (trs.length <= 1) { showToast('Нужна хотя бы одна строка', true); return; }
+    e.target.closest('tr').remove();
+    $$('#bulkAddTableBody tr').forEach((tr, i) => {
+      const num = tr.querySelector('td span');
+      if (num) num.textContent = i + 1;
+    });
+    updateBulkAddRowCount();
+  });
+
+  $('#bulkAddSubmitBtn').addEventListener('click', async () => {
+    const trs = $$('#bulkAddTableBody tr');
+    const coreFields = ['date', 'price', 'organizer', 'speaker', 'title', 'direction', 'mailing_list',
+      'published_on_site', 'subscription', 'link_participant', 'link_host', 'link_materials',
+      'link_recording', 'moderator_code'];
+    const items = [];
+    trs.forEach((tr, i) => {
+      const get = f => { const el = tr.querySelector(`[data-ba-field="${f}"]`); return el ? String(el.value).trim() : ''; };
+      const payload = {
+        date: get('date'), price: get('price'), organizer: get('organizer'), speaker: get('speaker'),
+        title: get('title'), direction: get('direction'), mailing_list: get('mailing_list'),
+        published_on_site: get('published_on_site'), subscription: get('subscription'),
+        link_participant: get('link_participant'), link_host: get('link_host'),
+        link_materials: get('link_materials'), link_recording: get('link_recording'),
+        moderator_code: get('moderator_code'),
+        doc_official_letter: '', doc_program: '', doc_invitation: '',
+      };
+      let customAny = false;
+      tr.querySelectorAll('[data-ba-custom]').forEach(el => {
+        const isBool = el.dataset.baType === 'boolean';
+        const v = isBool ? (el.checked ? '1' : '') : String(el.value).trim();
+        payload[el.dataset.baCustom] = v;
+        if (v) customAny = true;
+      });
+      const coreAny = coreFields.some(f => payload[f] !== '');
+      if (coreAny || customAny) items.push({ num: i + 1, payload });
+    });
+
+    if (!items.length) { showToast('Нет заполненных строк', true); return; }
+    for (const it of items) {
+      const p = it.payload;
+      const missing = [];
+      if (!p.date) missing.push('дата');
+      if (!(Number(p.price) > 0)) missing.push('цена больше нуля');
+      if (!p.organizer) missing.push('организатор');
+      if (!p.speaker) missing.push('спикер');
+      if (!p.title) missing.push('тема');
+      if (missing.length) { showToast(`Строка ${it.num}: заполните — ${missing.join(', ')}`, true); return; }
+    }
+
+    const btn = $('#bulkAddSubmitBtn');
+    const autoPub = $('#bulkAddAutoPublish').checked;
+    btn.disabled = true;
+    try {
+      if (autoPub) {
+        if (!landingMeta.themes.length) await loadLandingMeta();
+        applyDefaultTemplate();
+      }
+      let created = 0, failed = 0, published = 0, pubFailed = 0, lastErr = '';
+      for (let i = 0; i < items.length; i++) {
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Создаём ${i + 1}/${items.length}…`;
+        try {
+          const res = await fetch(API, { method: 'POST', body: JSON.stringify(items[i].payload) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.error || 'Ошибка создания');
+          created++;
+          if (autoPub) {
+            try { await publishLanding(json.data.id); published++; }
+            catch (pubErr) { pubFailed++; lastErr = pubErr.message; }
+          }
+        } catch (err) { failed++; lastErr = err.message; }
+      }
+      await loadRows();
+      renderAll();
+      const parts = [`Создано: ${created}`];
+      if (failed) parts.push(`ошибок: ${failed}`);
+      if (autoPub) {
+        parts.push(`страниц опубликовано: ${published}`);
+        if (pubFailed) parts.push(`страниц с ошибкой: ${pubFailed}`);
+      }
+      if (lastErr) parts.push(lastErr);
+      showToast(parts.join(' · '), failed > 0 || pubFailed > 0);
+      if (!failed && !pubFailed) {
+        bulkAddOverlay.style.display = 'none';
+      } else {
+        $('#bulkAddStatus').innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(parts.join(' · '))}`;
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-plus"></i> Добавить вебинары';
     }
   });
 

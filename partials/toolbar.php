@@ -29,6 +29,7 @@
   </div>
 
   <div class="toolbar toolbar-secondary">
+    <button class="btn btn-ghost" id="bulkAddBtn"><i class="fa-solid fa-table-list"></i> Массовое добавление</button>
     <button class="btn btn-ghost" id="settingsBtn"><i class="fa-solid fa-gear"></i> Настройка панели</button>
     <button class="btn btn-ghost" id="crmFieldsBtn"><i class="fa-solid fa-address-card"></i> Поля для CRM</button>
     <button class="btn btn-ghost" id="sendExportBtn"><i class="fa-solid fa-paper-plane"></i> Выгрузить для отправки</button>
