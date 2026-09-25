@@ -8,9 +8,20 @@
 
 declare(strict_types=1);
 
-const TEMPLATE_VERSION = '2.0.0';
+const TEMPLATE_VERSION = '2.1.0';
 
 const THEME_PRESETS = [
+    // Дизайн «КОДЕКС» — точная копия стилей эталонной страницы (Jost, display-2 3rem,
+    // кнопки btn-success/btn-white без иконок). Рендерится отдельной функцией
+    // render_landing_html_kodex(); overlay*/button* здесь — только для совместимости структуры.
+    'kodex' => [
+        'label' => 'КОДЕКС',
+        'overlayStart' => 'rgba(0, 0, 0, 0)', 'overlayEnd' => 'rgba(0, 0, 0, 0)',
+        'buttonStart' => '#40b0bf', 'buttonEnd' => '#40b0bf',
+        'hoverStart' => '#2a747e', 'hoverEnd' => '#2a747e',
+        'textColor' => '#ffffff',
+        'baseImage' => 'https://edu.vsesem.ru/2026/assets/images/mbr-1-1920x1276.jpg',
+    ],
     'wood' => [
         'label' => 'Дерево (нейтральный)',
         'overlayStart' => 'rgba(20, 21, 23, 0.6)', 'overlayEnd' => 'rgba(20, 21, 23, 0.68)',
@@ -132,6 +143,11 @@ function landing_format_date_long(string $date): string {
 const TECH_REQUIREMENTS_FAQ_URL = 'https://vsesem.ru/bbb/vsesem_faq.html';
 
 function render_landing_html(array $webinar, array $landing, string $fileName): string {
+    // Дизайн «КОДЕКС» рендерится своей функцией — отлаженный прототип kodex/index.html.
+    if ((string)($landing['themePreset'] ?? 'wood') === 'kodex') {
+        return render_landing_html_kodex($webinar, $landing, $fileName);
+    }
+
     $themeKey = (string)($landing['themePreset'] ?? 'wood');
     $theme = THEME_PRESETS[$themeKey] ?? THEME_PRESETS['wood'];
 
@@ -326,6 +342,270 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
       if (link.getAttribute('href') === '#') {
         link.addEventListener('click', (event) => event.preventDefault());
       }
+    });
+  </script>
+</body>
+</html>
+HTML;
+}
+
+/**
+ * Дизайн «КОДЕКС» — точная копия стилей эталонной страницы
+ * edu.vsesem.ru/2026/1lzl.html (согласованный прототип kodex/index.html):
+ *   - шрифт Jost, display-2 = 3rem/1.1, display-7 = 1.2rem;
+ *   - кнопки без иконок: рабочие — btn-success (#40b0bf), disabled «#» — btn-white (#fafafa);
+ *   - полноэкранный фон (картинка страницы + фон-эталон), без футера и оверлея;
+ *   - слайдеры кеглей/ширины и интенсивность фона не применяются — только фон-картинка.
+ */
+function render_landing_html_kodex(array $webinar, array $landing, string $fileName): string {
+    $title = landing_nl2br((string)($webinar['title'] ?? 'Вебинар'));
+    $title = str_replace(':', ':<br>', $title); // авто-перенос после двоеточия — как в классическом шаблоне
+    $pageTitle = landing_escape(
+        landing_format_date_long((string)($webinar['date'] ?? '')) . ' — '
+        . trim(preg_replace('/\s*\n\s*/', ' ', (string)($webinar['title'] ?? 'Вебинар')))
+    );
+    $webinarDateTime = landing_escape(landing_format_webinar_datetime(
+        (string)($webinar['date'] ?? ''),
+        (string)($landing['eventTime'] ?? '10:00')
+    ));
+
+    $safeBrowser  = landing_nl2br((string)($landing['browserText'] ?? ''));
+    $safePorts    = landing_escape((string)($landing['portsText'] ?? ''));
+    $supportText  = landing_escape((string)($landing['supportText'] ?? '') ?: 'Техническая поддержка');
+    $supportPhone = landing_escape((string)($landing['supportPhone'] ?? '') ?: '+7 910 154 76 86');
+
+    // Фон: картинка из конструктора (если задана) поверх эталонного фона КОДЕКС.
+    $defaultBg = (string)THEME_PRESETS['kodex']['baseImage'];
+    $customBg  = str_replace(['"', "'", '\\', "\n", "\r"], '', trim((string)($landing['backgroundImage'] ?? '')));
+    $bgImages  = $customBg !== ''
+        ? 'url("' . $customBg . '"), url("' . $defaultBg . '")'
+        : 'url("' . $defaultBg . '")';
+
+    $buttonsHtml = '';
+    foreach ((is_array($landing['buttons'] ?? null) ? $landing['buttons'] : []) as $btn) {
+        $label = trim((string)($btn['label'] ?? ''));
+        if ($label === '') continue;
+        $url = trim((string)($btn['url'] ?? '')) ?: '#';
+        $isDisabled = ($url === '#');
+        $class = $isDisabled ? 'btn btn-white display-4' : 'btn btn-success display-4';
+        $rel = (!$isDisabled && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
+        $buttonsHtml .= '<a class="' . $class . '" href="' . landing_escape($url) . '"' . $rel . '>'
+            . landing_escape($label) . '</a>';
+    }
+
+    return <<<HTML
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <title>{$pageTitle}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ---------- reset / base (bootstrap reboot subset) ---------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: auto; min-height: 100vh; overflow-x: hidden; }
+    body {
+      font-family: 'Jost', sans-serif;
+      line-height: 1.5;
+      font-weight: 400;
+      color: #232323;
+      position: relative;
+    }
+    b, strong { font-weight: 700; }
+    a {
+      color: #6592e6;
+      font-weight: 400;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.6s;
+    }
+    h1, h2, h3, h4, h5, h6,
+    .display-1, .display-2, .display-4, .display-5, .display-7,
+    span, p, a {
+      line-height: 1;
+      word-break: break-word;
+      word-wrap: break-word;
+      font-weight: 400;
+    }
+    p { margin-top: 0; margin-bottom: 1rem; }
+    h1, h2 { margin-top: 0; margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 1rem !important; }
+    .mt-3 { margin-top: 1rem !important; }
+
+    /* ---------- mobirise style.css subset ---------- */
+    section {
+      background-color: #ffffff;
+      background-position: 50% 50%;
+      background-repeat: no-repeat;
+      background-size: cover;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .mbr-section-title,
+    .mbr-section-subtitle { line-height: 1.3; }
+    .mbr-text { font-style: normal; line-height: 1.7; }
+    .mbr-white { color: #ffffff; }
+    .align-center { text-align: center; }
+
+    .mbr-fullscreen {
+      display: flex;
+      align-items: center;
+      min-height: 100vh;
+      padding-top: 3rem;
+      padding-bottom: 3rem;
+    }
+
+    /* container / grid (bootstrap5 subset) */
+    .container-fluid {
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 12px;
+      padding-right: 12px;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      margin-left: -12px;
+      margin-right: -12px;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .justify-content-center { justify-content: center; }
+    .col-12, .col-lg-12 {
+      flex: 0 0 auto;
+      width: 100%;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    @media (min-width: 768px) {
+      .container-fluid { padding-left: 32px; padding-right: 32px; }
+    }
+    @media (min-width: 992px) {
+      .row { margin-left: -16px; margin-right: -16px; }
+      .row > [class*=col] { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* buttons row wrapper */
+    .mbr-section-btn {
+      margin-left: -0.6rem;
+      margin-right: -0.6rem;
+      font-size: 0;
+    }
+
+    /* ---------- mbr-additional.css subset ---------- */
+    .btn {
+      font-family: 'Jost', sans-serif;
+      font-size: 1.1rem;
+      line-height: 1.5;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem 1.2rem;
+      margin: 0.6rem 0.6rem;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      white-space: normal;
+      word-break: break-word;
+      text-decoration: none;
+      transition: all 0.2s ease-in-out;
+      cursor: pointer;
+    }
+    .btn-success,
+    .btn-success:active {
+      background-color: #40b0bf !important;
+      border-color: #40b0bf !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-success:hover,
+    .btn-success:focus {
+      color: #ffffff !important;
+      background-color: #2a747e !important;
+      border-color: #2a747e !important;
+      box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-white,
+    .btn-white:active {
+      background-color: #fafafa !important;
+      border-color: #fafafa !important;
+      color: #7a7a7a !important;
+      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-white:hover,
+    .btn-white:focus {
+      color: #4f4f4f !important;
+      background-color: #cfcfcf !important;
+      border-color: #cfcfcf !important;
+      box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    /* display typography */
+    .display-1 { font-family: 'Jost', sans-serif; font-size: 4.6rem; line-height: 1.1; }
+    .display-2 { font-family: 'Jost', sans-serif; font-size: 3rem;   line-height: 1.1; }
+    .display-4 { font-family: 'Jost', sans-serif; font-size: 1.1rem; line-height: 1.5; }
+    .display-5 { font-family: 'Jost', sans-serif; font-size: 2rem;   line-height: 1.5; }
+    .display-7 { font-family: 'Jost', sans-serif; font-size: 1.2rem; line-height: 1.5; }
+
+    /* fluid typography (mobile), as on the reference page */
+    @media (max-width: 992px) {
+      .display-1 { font-size: 3.68rem; }
+    }
+    @media (max-width: 768px) {
+      .display-1 {
+        font-size: calc(2.26rem + (4.6 - 2.26) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.1 * (2.26rem + (4.6 - 2.26) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-2 {
+        font-size: calc(1.7rem + (3 - 1.7) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.3 * (1.7rem + (3 - 1.7) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-4 {
+        font-size: calc(1.0350000000000001rem + (1.1 - 1.0350000000000001) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.4 * (1.0350000000000001rem + (1.1 - 1.0350000000000001) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-5 {
+        font-size: calc(1.35rem + (2 - 1.35) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.4 * (1.35rem + (2 - 1.35) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-7 {
+        font-size: calc(1.07rem + (1.2 - 1.07) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.4 * (1.07rem + (1.2 - 1.07) * ((100vw - 20rem) / (48 - 20))));
+      }
+    }
+
+    /* ---------- фон КОДЕКС ---------- */
+    .kodex-hero {
+      background-color: #241b14;
+      background-image: {$bgImages};
+    }
+  </style>
+</head>
+<body>
+  <!-- Шаблон КОДЕКС -->
+  <section class="kodex-hero mbr-fullscreen mbr-parallax-background">
+    <div class="align-center container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-12">
+          <h1 class="mbr-section-title mbr-fonts-style mbr-white mb-3 display-2"><strong>ВЕБИНАР {$webinarDateTime}</strong><div><br></div></h1>
+          <h2 class="mbr-section-subtitle mbr-fonts-style mbr-white mb-3 display-2"><strong>{$title}</strong><strong>&nbsp;</strong><div><div><div><div><div><div><div><div><div><strong><br></strong></div></div></div></div></div></div></div></div></div></h2>
+          <p class="mbr-text mbr-fonts-style mbr-white display-7">{$safeBrowser} {$safePorts}<br>{$supportText} {$supportPhone}&nbsp;</p>
+          <div class="mbr-section-btn mt-3">{$buttonsHtml}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    document.querySelectorAll('a[href="#"]').forEach(function (link) {
+      link.addEventListener('click', function (event) { event.preventDefault(); });
     });
   </script>
 </body>
