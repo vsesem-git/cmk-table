@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-const TEMPLATE_VERSION = '2.1.0';
+const TEMPLATE_VERSION = '3.0.0';
 
 const THEME_PRESETS = [
     // Дизайн «КОДЕКС» — стили эталонной страницы (Jost, display-2, кнопки #40b0bf).
@@ -142,6 +142,222 @@ function landing_format_date_long(string $date): string {
 
 const TECH_REQUIREMENTS_FAQ_URL = 'https://vsesem.ru/bbb/vsesem_faq.html';
 
+// ---------------------------------------------------------------------------
+// Общий доменный слой страниц участников.
+// Используется рендером (render_landing_html*), публикацией (landing_pages.php)
+// и живым API данных (landing_data.php) — единый источник правды по форматам.
+// ---------------------------------------------------------------------------
+
+/** Кнопки, которые появляются на странице, если у вебинара заполнена соответствующая ссылка. */
+const CANONICAL_BUTTONS = [
+    ['field' => 'link_host',       'label' => 'Смотреть онлайн',              'icon' => 'play'],
+    ['field' => 'link_recording',  'label' => 'Скачать запись трансляции',    'icon' => 'video'],
+    ['field' => 'link_materials',  'label' => 'Скачать материалы вебинара',   'icon' => 'file'],
+];
+
+/** Строит массив кнопок из текущих ссылок вебинара — пустые ссылки просто не создают кнопку. */
+function lp_build_buttons(array $webinar): array {
+    $buttons = [];
+    foreach (CANONICAL_BUTTONS as $def) {
+        $url = trim((string)($webinar[$def['field']] ?? ''));
+        if ($url === '') {
+            if ($def['field'] === 'link_recording' || $def['field'] === 'link_materials') {
+                $url = '#';
+            } else {
+                continue;
+            }
+        }
+        $buttons[] = ['label' => $def['label'], 'url' => $url, 'icon' => $def['icon']];
+    }
+    return $buttons;
+}
+
+/** Статичные тексты (порты/поддержка/требования к браузеру/футер) — общие для всех страниц (data/settings.json). */
+function lp_static_text_fields(): array {
+    $settings = (array)json_read(__DIR__ . '/../data/settings.json', []);
+    return [
+        'portsText'       => $settings['landingPortsText'] ?? 'Откройте порты TCP:443 UDP:16384 - 32768',
+        'supportText'     => $settings['landingSupportText'] ?? 'Техническая поддержка',
+        'supportPhone'    => $settings['landingSupportPhone'] ?? '+7 910 154 76 86',
+        'supportSchedule' => $settings['landingSupportSchedule'] ?? '(гарантируется только в день вебинара с 10:00 до 15:00)',
+        'browserText'     => $settings['landingBrowserText'] ?? 'Используйте браузеры Yandex-Браузер / Google Chrome / Chromium / Firefox.',
+        'tooltipRecording' => $settings['landingTooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.',
+        'tooltipMaterials' => $settings['landingTooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.',
+        'footerText'      => $settings['landingFooterText'] ?? '© 2026 Страница создана по материалам вебинара',
+    ];
+}
+
+/** Находит вебинар по id, возвращает [индекс, строка] или [null, null]. */
+function lp_find_webinar(array $webinars, string $webinarId): array {
+    foreach ($webinars as $i => $w) {
+        if ((string)($w['id'] ?? '') === $webinarId) return [$i, $w];
+    }
+    return [null, null];
+}
+
+/** Текст всплывающей подсказки для неактивной кнопки (одинаково для всех рендеров и API). */
+function lp_button_tooltip(string $label, string $iconKey, array $landing): string {
+    if (mb_strpos($label, 'запись') !== false || $iconKey === 'video') {
+        return (string)($landing['tooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.');
+    }
+    if (mb_strpos($label, 'материалы') !== false || $iconKey === 'file') {
+        return (string)($landing['tooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.');
+    }
+    return '';
+}
+
+/** HTML кнопок (иконки, disabled + подсказка, rel) — единый для рендеров и живого API. */
+function lp_buttons_html($buttons, array $landing): string {
+    $html = '';
+    foreach ((is_array($buttons) ? $buttons : []) as $btn) {
+        $label = trim((string)($btn['label'] ?? ''));
+        if ($label === '') continue;
+        $url = trim((string)($btn['url'] ?? '')) ?: '#';
+        $iconKey = (string)($btn['icon'] ?? 'download');
+        $iconClass = BUTTON_ICON_CLASSES[$iconKey]['class'] ?? BUTTON_ICON_CLASSES['download']['class'];
+
+        $titleAttr = '';
+        $extraClass = '';
+        if ($url === '#') {
+            $extraClass = ' btn-disabled';
+            $tooltipText = lp_button_tooltip($label, $iconKey, $landing);
+            if ($tooltipText !== '') {
+                $titleAttr = ' data-tooltip="' . landing_escape($tooltipText) . '"';
+            }
+        }
+
+        $rel = ($url !== '#' && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
+        $html .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . '>'
+            . '<i class="' . landing_escape($iconClass) . '" aria-hidden="true"></i>' . landing_escape($label) . '</a>';
+    }
+    return $html;
+}
+
+/** Тема вебинара: экранирование + автоперенос строки после каждого двоеточия. */
+function lp_title_html(array $webinar): string {
+    $title = landing_nl2br((string)($webinar['title'] ?? 'Вебинар'));
+    return str_replace(':', ':<br>', $title);
+}
+
+/** <title> вкладки: «01 января 2026 г. — Тема». */
+function lp_page_title(array $webinar): string {
+    return landing_escape(
+        landing_format_date_long((string)($webinar['date'] ?? '')) . ' — '
+        . trim(preg_replace('/\s*\n\s*/', ' ', (string)($webinar['title'] ?? 'Вебинар')))
+    );
+}
+
+/** «02.10.2026 10:00» (экранировано) — для строки «ВЕБИНАР …». */
+function lp_datetime_html(array $webinar, array $landing): string {
+    return landing_escape(landing_format_webinar_datetime(
+        (string)($webinar['date'] ?? ''),
+        (string)($landing['eventTime'] ?? '10:00')
+    ));
+}
+
+/** Строка требований: браузеры + порты. */
+function lp_requirement_html(array $landing): string {
+    $browser = landing_nl2br((string)($landing['browserText'] ?? ''));
+    $ports = landing_escape((string)($landing['portsText'] ?? '') ?: 'Откройте порты TCP:443 UDP:16384 - 32768');
+    return $browser . ' ' . $ports;
+}
+
+/** Строка поддержки: $plain=true — как в КОДЕКС (текст); false — как в классике (терминал + tel:). */
+function lp_support_html(array $landing, bool $plain): string {
+    $text = landing_escape((string)($landing['supportText'] ?? '') ?: 'Техническая поддержка');
+    $phoneRaw = (string)($landing['supportPhone'] ?? '') ?: '+7 910 154 76 86';
+    $phone = landing_escape($phoneRaw);
+    if ($plain) {
+        return $text . ' ' . $phone . '&nbsp;';
+    }
+    $href = landing_escape(landing_phone_href($phoneRaw));
+    return '<span class="terminal">' . $text . ' <a class="support-link" href="' . $href . '">' . $phone . '</a></span>';
+}
+
+/**
+ * URL живого API данных страницы: {origin}{webdir}/landing_data.php?f={код файла}.
+ * Возвращается '' вне веба-контекста или если код файла пуст — тогда страница
+ * работает как обычная статичная (скрипт обновления просто не запускается).
+ */
+function landing_live_api_url(string $fileName): string {
+    $fileId = pathinfo($fileName, PATHINFO_FILENAME);
+    if ($fileId === '') return '';
+    if (function_exists('current_origin') && function_exists('current_script_web_dir')) {
+        return current_origin() . rtrim(current_script_web_dir(), '/') . '/landing_data.php?f=' . rawurlencode($fileId);
+    }
+    // CLI/тесты: без хост-контекста
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . '/landing_data.php?f=' . rawurlencode($fileId);
+}
+
+/**
+ * Инлайн-скрипт живого обновления страницы (без внешних зависимостей):
+ *   - сразу и раз в 60 секунд подтягивает данные своего токена;
+ *   - мгновенный рефреш при возврате во вкладку (visibilitychange);
+ *   - при удалении вебинара показывает «Мероприятие удалено»;
+ *   - при ошибке сети сохраняет последний отрендеренный контент.
+ */
+function landing_live_script(): string {
+    return <<<'JS'
+(function () {
+  var body = document.body;
+  var api = body.getAttribute('data-lp-api');
+  if (!api) return;
+  var stopped = false, busy = false, timer = null;
+
+  function put(id, html) {
+    var el = document.getElementById(id);
+    if (el && typeof html === 'string') el.innerHTML = html;
+  }
+
+  function showRemoved() {
+    if (stopped) return;
+    stopped = true;
+    if (timer) clearInterval(timer);
+    document.title = 'Мероприятие удалено';
+    var content = document.getElementById('lpContent');
+    if (content) {
+      content.innerHTML = '<div style="font-weight:800; font-size:clamp(22px, 4vw, 34px); letter-spacing:.02em; text-align:center; padding:48px 0;">Мероприятие удалено</div>';
+    }
+  }
+
+  function apply(d) {
+    if (d.pageTitle) document.title = d.pageTitle;
+    put('lpKicker', d.kickerHtml);
+    put('lpTitle', d.titleHtml);
+    put('lpRequirement', d.requirementHtml);
+    put('lpSupport', d.supportHtml);
+    put('lpButtons', d.buttonsHtml);
+  }
+
+  function refresh() {
+    if (stopped || busy) return;
+    busy = true;
+    fetch(api + (api.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' }
+    }).then(function (res) {
+      return res.json();
+    }).then(function (json) {
+      busy = false;
+      if (!json || !json.ok || !json.data) return;
+      if (json.data.status === 'removed') showRemoved();
+      else apply(json.data);
+    }).catch(function () {
+      busy = false; // сеть недоступна — оставляем последний контент
+    });
+  }
+
+  refresh();
+  timer = setInterval(refresh, 60000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') refresh();
+  });
+})();
+JS;
+}
+
 function render_landing_html(array $webinar, array $landing, string $fileName): string {
     // Дизайн «КОДЕКС» рендерится своей функцией — отлаженный прототип kodex/index.html.
     if ((string)($landing['themePreset'] ?? 'wood') === 'kodex') {
@@ -151,19 +367,11 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
     $themeKey = (string)($landing['themePreset'] ?? 'wood');
     $theme = THEME_PRESETS[$themeKey] ?? THEME_PRESETS['wood'];
 
-    $title = landing_nl2br((string)($webinar['title'] ?? 'Вебинар'));
-    $title = str_replace(':', ':<br>', $title); // авто-перенос строки после каждого двоеточия — только на лендинге
-    $pageTitle = landing_escape(landing_format_date_long((string)($webinar['date'] ?? '')) . ' — ' . trim(preg_replace('/\s*\n\s*/', ' ', (string)($webinar['title'] ?? 'Вебинар'))));
-    $webinarDateTime = landing_escape(landing_format_webinar_datetime((string)($webinar['date'] ?? ''), (string)($landing['eventTime'] ?? '10:00')));
-
-    $safeBrowser = landing_nl2br((string)($landing['browserText'] ?? ''));
-    $safePorts = landing_escape((string)($landing['portsText'] ?? '') ?: 'Откройте порты TCP:443 UDP:16384 - 32768');
-    $supportText = landing_escape((string)($landing['supportText'] ?? '') ?: 'Техническая поддержка');
-    $supportPhoneRaw = (string)($landing['supportPhone'] ?? '') ?: '+7 910 154 76 86';
-    $supportPhone = landing_escape($supportPhoneRaw);
-    $supportHref = landing_escape(landing_phone_href($supportPhoneRaw));
-    $supportSchedule = landing_escape((string)($landing['supportSchedule'] ?? '') ?: '(гарантируется только в день вебинара с 10-00 до 15-00)');
-    $footerText = landing_escape((string)($landing['footerText'] ?? '') ?: '© 2026 Страница создана по материалам вебинара');
+    $title = lp_title_html($webinar);
+    $pageTitle = lp_page_title($webinar);
+    $webinarDateTime = lp_datetime_html($webinar, $landing);
+    $requirementHtml = lp_requirement_html($landing);
+    $supportHtml = lp_support_html($landing, false);
 
     $bgUrl = trim((string)($landing['backgroundImage'] ?? ''));
     $bg = str_replace(['"', "'"], '', $bgUrl !== '' ? $bgUrl : $theme['baseImage']);
@@ -185,33 +393,10 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
     $centerPx = (int)round(1400 * $titleWidthPct / 100);
     $contentPx = max(1600, $centerPx + 200);
 
-    $buttonsHtml = '';
-    foreach ((is_array($landing['buttons'] ?? null) ? $landing['buttons'] : []) as $btn) {
-        $label = trim((string)($btn['label'] ?? ''));
-        if ($label === '') continue;
-        $url = trim((string)($btn['url'] ?? '')) ?: '#';
-        $iconKey = (string)($btn['icon'] ?? 'download');
-        $iconClass = BUTTON_ICON_CLASSES[$iconKey]['class'] ?? BUTTON_ICON_CLASSES['download']['class'];
-        
-        $titleAttr = '';
-        $extraClass = '';
-        if ($url === '#') {
-            $extraClass = ' btn-disabled';
-            $tooltipText = '';
-            if (mb_strpos($label, 'запись') !== false || $iconKey === 'video') {
-                $tooltipText = (string)($landing['tooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.');
-            } elseif (mb_strpos($label, 'материалы') !== false || $iconKey === 'file') {
-                $tooltipText = (string)($landing['tooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.');
-            }
-            if ($tooltipText !== '') {
-                $titleAttr = ' data-tooltip="' . landing_escape($tooltipText) . '"';
-            }
-        }
-        
-        $rel = ($url !== '#' && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
-        $buttonsHtml .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . '>'
-            . '<i class="' . landing_escape($iconClass) . '" aria-hidden="true"></i>' . landing_escape($label) . '</a>';
-    }
+    $buttonsHtml = lp_buttons_html(is_array($landing['buttons'] ?? null) ? $landing['buttons'] : [], $landing);
+
+    $liveApi = landing_live_api_url($fileName);
+    $liveJs = landing_live_script();
 
     return <<<HTML
 <!DOCTYPE html>
@@ -321,17 +506,17 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
     }
   </style>
 </head>
-<body>
+<body data-lp-api="{$liveApi}">
   <header class="hero">
     <main class="content">
-      <section class="center" aria-label="Информация о вебинаре">
-        <p class="kicker">ВЕБИНАР {$webinarDateTime}</p>
-        <h1 class="main">{$title}</h1>
+      <section class="center" id="lpContent" aria-label="Информация о вебинаре">
+        <p class="kicker" id="lpKicker">ВЕБИНАР {$webinarDateTime}</p>
+        <h1 class="main" id="lpTitle">{$title}</h1>
         <section class="meta" aria-label="Технические требования и поддержка">
-          <p>{$safeBrowser} {$safePorts}</p>
-          <p style="margin-top: 12px;"><span class="terminal">{$supportText} <a class="support-link" href="{$supportHref}">{$supportPhone}</a></span></p>
+          <p id="lpRequirement">{$requirementHtml}</p>
+          <p style="margin-top: 12px;" id="lpSupport">{$supportHtml}</p>
         </section>
-        <section class="actions" aria-label="Скачивание материалов">{$buttonsHtml}</section>
+        <section class="actions" id="lpButtons" aria-label="Скачивание материалов">{$buttonsHtml}</section>
       </section>
     </main>
     <footer class="bottom">
@@ -344,6 +529,7 @@ function render_landing_html(array $webinar, array $landing, string $fileName): 
       }
     });
   </script>
+  <script>{$liveJs}</script>
 </body>
 </html>
 HTML;
@@ -362,21 +548,11 @@ HTML;
 function render_landing_html_kodex(array $webinar, array $landing, string $fileName): string {
     $theme = THEME_PRESETS['kodex'];
 
-    $title = landing_nl2br((string)($webinar['title'] ?? 'Вебинар'));
-    $title = str_replace(':', ':<br>', $title); // авто-перенос после двоеточия — как в классическом шаблоне
-    $pageTitle = landing_escape(
-        landing_format_date_long((string)($webinar['date'] ?? '')) . ' — '
-        . trim(preg_replace('/\s*\n\s*/', ' ', (string)($webinar['title'] ?? 'Вебинар')))
-    );
-    $webinarDateTime = landing_escape(landing_format_webinar_datetime(
-        (string)($webinar['date'] ?? ''),
-        (string)($landing['eventTime'] ?? '10:00')
-    ));
-
-    $safeBrowser  = landing_nl2br((string)($landing['browserText'] ?? ''));
-    $safePorts    = landing_escape((string)($landing['portsText'] ?? ''));
-    $supportText  = landing_escape((string)($landing['supportText'] ?? '') ?: 'Техническая поддержка');
-    $supportPhone = landing_escape((string)($landing['supportPhone'] ?? '') ?: '+7 910 154 76 86');
+    $title = lp_title_html($webinar);
+    $pageTitle = lp_page_title($webinar);
+    $webinarDateTime = lp_datetime_html($webinar, $landing);
+    $requirementHtml = lp_requirement_html($landing);
+    $supportHtml = lp_support_html($landing, true);
 
     // Слайдеры конструктора; fallback = вид согласованного прототипа.
     $dateFontPx   = landing_clamp((int)($landing['dateFontPx'] ?? 0), 12, 72, 48);
@@ -400,33 +576,10 @@ function render_landing_html_kodex(array $webinar, array $landing, string $fileN
 
     // Кнопки — тем же конвейером, что и в классическом шаблоне
     // (иконки, цвета темы, серые неактивные с подсказкой из настроек).
-    $buttonsHtml = '';
-    foreach ((is_array($landing['buttons'] ?? null) ? $landing['buttons'] : []) as $btn) {
-        $label = trim((string)($btn['label'] ?? ''));
-        if ($label === '') continue;
-        $url = trim((string)($btn['url'] ?? '')) ?: '#';
-        $iconKey = (string)($btn['icon'] ?? 'download');
-        $iconClass = BUTTON_ICON_CLASSES[$iconKey]['class'] ?? BUTTON_ICON_CLASSES['download']['class'];
+    $buttonsHtml = lp_buttons_html(is_array($landing['buttons'] ?? null) ? $landing['buttons'] : [], $landing);
 
-        $titleAttr = '';
-        $extraClass = '';
-        if ($url === '#') {
-            $extraClass = ' btn-disabled';
-            $tooltipText = '';
-            if (mb_strpos($label, 'запись') !== false || $iconKey === 'video') {
-                $tooltipText = (string)($landing['tooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.');
-            } elseif (mb_strpos($label, 'материалы') !== false || $iconKey === 'file') {
-                $tooltipText = (string)($landing['tooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.');
-            }
-            if ($tooltipText !== '') {
-                $titleAttr = ' data-tooltip="' . landing_escape($tooltipText) . '"';
-            }
-        }
-
-        $rel = ($url !== '#' && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
-        $buttonsHtml .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . '>'
-            . '<i class="' . landing_escape($iconClass) . '" aria-hidden="true"></i>' . landing_escape($label) . '</a>';
-    }
+    $liveApi = landing_live_api_url($fileName);
+    $liveJs = landing_live_script();
 
     return <<<HTML
 <!DOCTYPE html>
@@ -668,18 +821,18 @@ function render_landing_html_kodex(array $webinar, array $landing, string $fileN
     .kodex-copy { width: min({$centerPx}px, 100%); margin: 0 auto; }
   </style>
 </head>
-<body>
+<body data-lp-api="{$liveApi}">
   <!-- Шаблон КОДЕКС -->
   <section class="kodex-hero mbr-fullscreen mbr-parallax-background">
     <div class="kodex-overlay"></div>
     <div class="align-center container-fluid">
       <div class="row justify-content-center">
         <div class="col-12 col-lg-12">
-          <div class="kodex-copy">
-            <h1 class="mbr-section-title mbr-fonts-style mbr-white mb-3 display-2 kodex-kicker"><strong>ВЕБИНАР {$webinarDateTime}</strong><div><br></div></h1>
-            <h2 class="mbr-section-subtitle mbr-fonts-style mbr-white mb-3 display-2 kodex-title"><strong>{$title}</strong><strong>&nbsp;</strong><div><div><div><div><div><div><div><div><div><strong><br></strong></div></div></div></div></div></div></div></div></div></h2>
-            <p class="mbr-text mbr-fonts-style mbr-white display-7 kodex-meta">{$safeBrowser} {$safePorts}<br>{$supportText} {$supportPhone}&nbsp;</p>
-            <div class="mbr-section-btn mt-3">{$buttonsHtml}</div>
+          <div class="kodex-copy" id="lpContent">
+            <h1 class="mbr-section-title mbr-fonts-style mbr-white mb-3 display-2 kodex-kicker"><strong id="lpKicker">ВЕБИНАР {$webinarDateTime}</strong><div><br></div></h1>
+            <h2 class="mbr-section-subtitle mbr-fonts-style mbr-white mb-3 display-2 kodex-title"><strong id="lpTitle">{$title}</strong><strong>&nbsp;</strong><div><div><div><div><div><div><div><div><div><strong><br></strong></div></div></div></div></div></div></div></div></div></h2>
+            <p class="mbr-text mbr-fonts-style mbr-white display-7 kodex-meta"><span id="lpRequirement">{$requirementHtml}</span><br><span id="lpSupport">{$supportHtml}</span></p>
+            <div class="mbr-section-btn mt-3" id="lpButtons">{$buttonsHtml}</div>
           </div>
         </div>
       </div>
@@ -693,6 +846,7 @@ function render_landing_html_kodex(array $webinar, array $landing, string $fileN
       }
     });
   </script>
+  <script>{$liveJs}</script>
 </body>
 </html>
 HTML;

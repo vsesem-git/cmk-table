@@ -34,13 +34,6 @@ const LP_FILE           = __DIR__ . '/data/landing_pages.json';
 const WEBINARS_FILE     = __DIR__ . '/data/webinars.json';
 const SETTINGS_FILE_LP  = __DIR__ . '/data/settings.json';
 
-/** Кнопки, которые появляются на странице, если у вебинара заполнена соответствующая ссылка. */
-const CANONICAL_BUTTONS = [
-    ['field' => 'link_host',       'label' => 'Смотреть онлайн',              'icon' => 'play'],
-    ['field' => 'link_recording',  'label' => 'Скачать запись трансляции',    'icon' => 'video'],
-    ['field' => 'link_materials',  'label' => 'Скачать материалы вебинара',   'icon' => 'file'],
-];
-
 function respond_lp(bool $ok, $data = null, string $error = ''): void {
     echo json_encode(['ok' => $ok, 'data' => $data, 'error' => $error], JSON_UNESCAPED_UNICODE);
     exit;
@@ -90,37 +83,7 @@ function lp_sanitize_design(array $in): array {
     ];
 }
 
-/** Строит массив кнопок из текущих ссылок вебинара — пустые ссылки просто не создают кнопку. */
-function lp_build_buttons(array $webinar): array {
-    $buttons = [];
-    foreach (CANONICAL_BUTTONS as $def) {
-        $url = trim((string)($webinar[$def['field']] ?? ''));
-        if ($url === '') {
-            if ($def['field'] === 'link_recording' || $def['field'] === 'link_materials') {
-                $url = '#';
-            } else {
-                continue;
-            }
-        }
-        $buttons[] = ['label' => $def['label'], 'url' => $url, 'icon' => $def['icon']];
-    }
-    return $buttons;
-}
-
-/** Статичные тексты (порты/поддержка/требования к браузеру/футер) — общие для всех страниц (data/settings.json). */
-function lp_static_text_fields(): array {
-    $settings = (array)json_read(SETTINGS_FILE_LP, []);
-    return [
-        'portsText'       => $settings['landingPortsText'] ?? 'Откройте порты TCP:443 UDP:16384 - 32768',
-        'supportText'     => $settings['landingSupportText'] ?? 'Техническая поддержка',
-        'supportPhone'    => $settings['landingSupportPhone'] ?? '+7 910 154 76 86',
-        'supportSchedule' => $settings['landingSupportSchedule'] ?? '(гарантируется только в день вебинара с 10:00 до 15:00)',
-        'browserText'     => $settings['landingBrowserText'] ?? 'Используйте браузеры Yandex-Браузер / Google Chrome / Chromium / Firefox.',
-        'tooltipRecording' => $settings['landingTooltipRecording'] ?? 'Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.',
-        'tooltipMaterials' => $settings['landingTooltipMaterials'] ?? 'Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.',
-        'footerText'      => $settings['landingFooterText'] ?? '© 2026 Страница создана по материалам вебинара',
-    ];
-}
+/** Статичные тексты см. lp_static_text_fields() в includes/landing_template.php. */
 
 /** Безопасно нормализует относительный путь, схлопывая ".." без выхода за пределы. */
 function lp_normalize_segments(string $path): array {
@@ -146,13 +109,7 @@ function lp_generate_file_id(string $targetDir, int $length = 6): string {
     return substr(bin2hex(random_bytes($length)), 0, $length);
 }
 
-/** Находит вебинар по id, возвращает [индекс, строка] или [null, null]. */
-function lp_find_webinar(array $webinars, string $webinarId): array {
-    foreach ($webinars as $i => $w) {
-        if ((string)($w['id'] ?? '') === $webinarId) return [$i, $w];
-    }
-    return [null, null];
-}
+/** Находит вебинар по id — см. lp_find_webinar() в includes/landing_template.php. */
 
 /** Вычисляет целевую директорию публикации внутри DOCUMENT_ROOT и проверяет, что не вышли за его пределы. */
 function lp_resolve_output_dir(string $documentRoot, string $outputBase, string $webinarDate): array {
