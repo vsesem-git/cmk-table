@@ -52,6 +52,20 @@
   const $ = sel => document.querySelector(sel);
   const $$ = sel => Array.from(document.querySelectorAll(sel));
 
+  /**
+   * Безопасная привязка обработчика: если элемента нет — пишем в консоль,
+   * вместо исключения, которое убивает всю инициализацию приложения.
+   */
+  function on(selector, event, handler) {
+    const el = typeof selector === 'string' ? $(selector) : selector;
+    if (!el) {
+      console.warn('[app] элемент не найден, обработчик не навешен:', selector, event);
+      return null;
+    }
+    el.addEventListener(event, handler);
+    return el;
+  }
+
   function defaultSettings() {
     return {
       hidden: [], linkAsText: [], colWidths: {}, tableWidthMode: 'scroll', landingOutputBase: '',
@@ -444,7 +458,7 @@
 
     $$('.col-resizer').forEach(el => el.addEventListener('mousedown', onResizerMouseDown));
 
-    $('#selectAllBox').addEventListener('change', e => {
+    on('#selectAllBox', 'change', e => {
       const vis = visibleRows();
       if (e.target.checked) vis.forEach(r => selectedIds.add(r.id));
       else vis.forEach(r => selectedIds.delete(r.id));
@@ -696,7 +710,7 @@
     pop.style.left = left + 'px';
     pop.style.top = Math.min(rect.bottom + 6, window.innerHeight - 380) + 'px';
 
-    $('#popSearchInput').addEventListener('input', e => {
+    on('#popSearchInput', 'input', e => {
       const q = e.target.value.toLowerCase();
       $$('#popList .filter-opt').forEach(opt => {
         opt.style.display = opt.dataset.val.toLowerCase().includes(q) ? 'flex' : 'none';
@@ -713,9 +727,9 @@
       });
     }
 
-    $('#popClear').addEventListener('click', () => { delete filters[col]; persistFilters(); renderAll(); closePopover(); });
+    on('#popClear', 'click', () => { delete filters[col]; persistFilters(); renderAll(); closePopover(); });
 
-    $('#popDone').addEventListener('click', () => {
+    on('#popDone', 'click', () => {
       const checkedKeys = new Set();
       let uncheckedCount = 0;
       $$('#popList .filter-opt').forEach(opt => {
@@ -759,12 +773,12 @@
   // ---------- Search / reset ----------
 
   let searchDebounceTimer = null;
-  $('#searchInput').addEventListener('input', e => {
+  on('#searchInput', 'input', e => {
     const value = e.target.value.trim();
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => { search = value; renderAll(); }, 150);
   });
-  $('#resetFiltersBtn').addEventListener('click', () => { filters = {}; persistFilters(); renderAll(); });
+  on('#resetFiltersBtn', 'click', () => { filters = {}; persistFilters(); renderAll(); });
 
   // ---------- Modal / CRUD ----------
 
@@ -784,17 +798,17 @@
     sel.innerHTML = html;
   }
 
-  $('#f_organizer').addEventListener('change', e => {
+  on('#f_organizer', 'change', e => {
     $('#newOrgBox').style.display = e.target.value === '__new__' ? 'flex' : 'none';
     if (e.target.value === '__new__') { $('#newOrgName').value = ''; $('#newOrgName').focus(); }
   });
 
-  $('#newOrgCancel').addEventListener('click', () => {
+  on('#newOrgCancel', 'click', () => {
     $('#newOrgBox').style.display = 'none';
     populateOrganizerSelect(organizersList[0] ? organizersList[0].name : '');
   });
 
-  $('#newOrgSave').addEventListener('click', async () => {
+  on('#newOrgSave', 'click', async () => {
     const name = $('#newOrgName').value.trim();
     if (!name) return;
     const color = $('#newOrgColor').value;
@@ -821,15 +835,15 @@
     sel.innerHTML = html;
   }
 
-  $('#f_direction').addEventListener('change', e => {
+  on('#f_direction', 'change', e => {
     $('#newDirBox').style.display = e.target.value === '__new__' ? 'flex' : 'none';
     if (e.target.value === '__new__') { $('#newDirName').value = ''; $('#newDirName').focus(); }
   });
-  $('#newDirCancel').addEventListener('click', () => {
+  on('#newDirCancel', 'click', () => {
     $('#newDirBox').style.display = 'none';
     populateDirectionSelect('');
   });
-  $('#newDirSave').addEventListener('click', async () => {
+  on('#newDirSave', 'click', async () => {
     const name = $('#newDirName').value.trim();
     if (!name) return;
     const color = $('#newDirColor').value;
@@ -854,15 +868,15 @@
     sel.innerHTML = html;
   }
 
-  $('#f_published_on_site').addEventListener('change', e => {
+  on('#f_published_on_site', 'change', e => {
     $('#newPublishedBox').style.display = e.target.value === '__new__' ? 'flex' : 'none';
     if (e.target.value === '__new__') { $('#newPublishedName').value = ''; $('#newPublishedName').focus(); }
   });
-  $('#newPublishedCancel').addEventListener('click', () => {
+  on('#newPublishedCancel', 'click', () => {
     $('#newPublishedBox').style.display = 'none';
     populatePublishedSelect('');
   });
-  $('#newPublishedSave').addEventListener('click', async () => {
+  on('#newPublishedSave', 'click', async () => {
     const name = $('#newPublishedName').value.trim();
     if (!name) return;
     const color = $('#newPublishedColor').value;
@@ -887,15 +901,15 @@
     sel.innerHTML = html;
   }
 
-  $('#f_subscription').addEventListener('change', e => {
+  on('#f_subscription', 'change', e => {
     $('#newSubscriptionBox').style.display = e.target.value === '__new__' ? 'flex' : 'none';
     if (e.target.value === '__new__') { $('#newSubscriptionName').value = ''; $('#newSubscriptionName').focus(); }
   });
-  $('#newSubscriptionCancel').addEventListener('click', () => {
+  on('#newSubscriptionCancel', 'click', () => {
     $('#newSubscriptionBox').style.display = 'none';
     populateSubscriptionSelect('');
   });
-  $('#newSubscriptionSave').addEventListener('click', async () => {
+  on('#newSubscriptionSave', 'click', async () => {
     const name = $('#newSubscriptionName').value.trim();
     if (!name) return;
     const color = $('#newSubscriptionColor').value;
@@ -936,7 +950,7 @@
     }));
   }
 
-  $('#speakerTrigger').addEventListener('click', () => {
+  on('#speakerTrigger', 'click', () => {
     const panel = $('#speakerPanel');
     const willOpen = panel.style.display === 'none';
     if (willOpen) {
@@ -949,19 +963,19 @@
       panel.style.display = 'none';
     }
   });
-  $('#speakerSearchInput').addEventListener('input', e => renderSpeakerOptions(e.target.value));
+  on('#speakerSearchInput', 'input', e => renderSpeakerOptions(e.target.value));
   document.addEventListener('click', e => {
     if (!e.target.closest('#speakerPanel') && !e.target.closest('#speakerTrigger')) {
       $('#speakerPanel').style.display = 'none';
     }
   });
-  $('#addSpeakerBtn').addEventListener('click', () => {
+  on('#addSpeakerBtn', 'click', () => {
     $('#newSpeakerBox').style.display = 'flex';
     $('#newSpeakerName').value = $('#speakerSearchInput').value.trim();
     $('#newSpeakerName').focus();
   });
-  $('#newSpeakerCancel').addEventListener('click', () => { $('#newSpeakerBox').style.display = 'none'; });
-  $('#newSpeakerSave').addEventListener('click', async () => {
+  on('#newSpeakerCancel', 'click', () => { $('#newSpeakerBox').style.display = 'none'; });
+  on('#newSpeakerSave', 'click', async () => {
     const name = $('#newSpeakerName').value.trim();
     if (!name) return;
     try {
@@ -1085,7 +1099,7 @@
     $('#downloadDocsZipBtn').style.display = (hasId && anyDoc) ? 'inline-flex' : 'none';
   }
 
-  $('#downloadDocsZipBtn').addEventListener('click', () => {
+  on('#downloadDocsZipBtn', 'click', () => {
     const webinarId = $('#f_id').value;
     if (!webinarId) return;
     window.open(`webinar_docs.php?action=zip&webinarId=${encodeURIComponent(webinarId)}`, '_blank');
@@ -1161,7 +1175,7 @@
     return $$('#mailingListCheckboxes input:checked').map(b => b.value).join(',');
   }
 
-  $('#mailingListTrigger').addEventListener('click', () => {
+  on('#mailingListTrigger', 'click', () => {
     const panel = $('#mailingListPanel');
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
   });
@@ -1170,15 +1184,15 @@
       $('#mailingListPanel').style.display = 'none';
     }
   });
-  $('#mailingListDoneBtn').addEventListener('click', () => { $('#mailingListPanel').style.display = 'none'; });
+  on('#mailingListDoneBtn', 'click', () => { $('#mailingListPanel').style.display = 'none'; });
 
-  $('#addMailingListBtn').addEventListener('click', () => {
+  on('#addMailingListBtn', 'click', () => {
     $('#newMailingListBox').style.display = 'flex';
     $('#newMailingListName').value = '';
     $('#newMailingListName').focus();
   });
-  $('#newMailingListCancel').addEventListener('click', () => { $('#newMailingListBox').style.display = 'none'; });
-  $('#newMailingListSave').addEventListener('click', async () => {
+  on('#newMailingListCancel', 'click', () => { $('#newMailingListBox').style.display = 'none'; });
+  on('#newMailingListSave', 'click', async () => {
     const name = $('#newMailingListName').value.trim();
     if (!name) return;
     const color = $('#newMailingListColor').value;
@@ -1196,11 +1210,11 @@
 
   function closeModal() { overlay.style.display = 'none'; }
 
-  $('#addBtn').addEventListener('click', () => openModal());
-  $('#modalClose').addEventListener('click', closeModal);
-  $('#modalCancel').addEventListener('click', closeModal);
+  on('#addBtn', 'click', () => openModal());
+  on('#modalClose', 'click', closeModal);
+  on('#modalCancel', 'click', closeModal);
 
-  $('#webinarForm').addEventListener('submit', async e => {
+  on('#webinarForm', 'submit', async e => {
     e.preventDefault();
     if ($('#f_organizer').value === '__new__') {
       showToast('Сначала добавьте нового организатора или выберите существующего', true);
@@ -1297,16 +1311,16 @@
 
   const addColumnOverlay = $('#addColumnOverlay');
 
-  $('#addColBtn').addEventListener('click', () => {
+  on('#addColBtn', 'click', () => {
     $('#newColumnLabel').value = '';
     $$('input[name="newColumnType"]').forEach(r => { r.checked = r.value === 'text'; });
     addColumnOverlay.style.display = 'flex';
   });
-  $('#addColumnClose').addEventListener('click', () => addColumnOverlay.style.display = 'none');
-  $('#addColumnCancel').addEventListener('click', () => addColumnOverlay.style.display = 'none');
+  on('#addColumnClose', 'click', () => addColumnOverlay.style.display = 'none');
+  on('#addColumnCancel', 'click', () => addColumnOverlay.style.display = 'none');
   addColumnOverlay.addEventListener('click', e => { if (e.target === addColumnOverlay) addColumnOverlay.style.display = 'none'; });
 
-  $('#addColumnSave').addEventListener('click', async () => {
+  on('#addColumnSave', 'click', async () => {
     const label = $('#newColumnLabel').value.trim();
     if (!label) { showToast('Укажите название столбца', true); return; }
     const type = ($$('input[name="newColumnType"]').find(r => r.checked) || {}).value || 'text';
@@ -1418,12 +1432,12 @@
     if (radio.checked) { settings.tableWidthMode = radio.value; saveSettings(); renderAll(); }
   }));
 
-  $('#landingOutputBaseInput').addEventListener('change', e => {
+  on('#landingOutputBaseInput', 'change', e => {
     settings.landingOutputBase = e.target.value.trim().replace(/^\/+|\/+$/g, '');
     saveSettings();
   });
 
-  $('#landingLinkLengthInput').addEventListener('change', e => {
+  on('#landingLinkLengthInput', 'change', e => {
     let val = parseInt(e.target.value, 10);
     if (isNaN(val) || val < 4) val = 4;
     if (val > 32) val = 32;
@@ -1434,13 +1448,13 @@
 
   ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingBrowserText', 'landingFooterText', 'landingTooltipRecording', 'landingTooltipMaterials'].forEach(key => {
     const inputId = `#${key}Input`;
-    $(inputId).addEventListener('change', e => {
+    on(inputId, 'change', e => {
       settings[key] = e.target.value.trim();
       saveSettings();
     });
   });
 
-  $('#registryWidthSelect').addEventListener('change', e => {
+  on('#registryWidthSelect', 'change', e => {
     settings.registryWidth = e.target.value;
     saveSettings();
     applyRegistryWidth();
@@ -1512,17 +1526,17 @@
 
   $('#qlIcon').innerHTML = QUICKLINK_ICON_CHOICES.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
 
-  $('#qlAddBtn').addEventListener('click', () => {
+  on('#qlAddBtn', 'click', () => {
     $('#quickLinkForm').style.display = 'flex';
     $('#qlLabel').value = '';
     $('#qlUrl').value = '';
     $('#qlAddBtn').style.display = 'none';
   });
-  $('#qlCancelBtn').addEventListener('click', () => {
+  on('#qlCancelBtn', 'click', () => {
     $('#quickLinkForm').style.display = 'none';
     renderQuickLinksList();
   });
-  $('#qlSaveBtn').addEventListener('click', () => {
+  on('#qlSaveBtn', 'click', () => {
     const label = $('#qlLabel').value.trim();
     const url = $('#qlUrl').value.trim();
     if (!label || !url) { showToast('Укажите название и ссылку', true); return; }
@@ -1558,17 +1572,17 @@
     $('#mrAddBtn').style.display = list.length >= 30 ? 'none' : 'inline-flex';
   }
 
-  $('#mrAddBtn').addEventListener('click', () => {
+  on('#mrAddBtn', 'click', () => {
     $('#mailRecipientForm').style.display = 'flex';
     $('#mrEmail').value = '';
     $('#mrLabel').value = '';
     $('#mrAddBtn').style.display = 'none';
   });
-  $('#mrCancelBtn').addEventListener('click', () => {
+  on('#mrCancelBtn', 'click', () => {
     $('#mailRecipientForm').style.display = 'none';
     renderMailRecipientsList();
   });
-  $('#mrSaveBtn').addEventListener('click', () => {
+  on('#mrSaveBtn', 'click', () => {
     const email = $('#mrEmail').value.trim();
     const label = $('#mrLabel').value.trim();
     if (!/^\S+@\S+\.\S+$/.test(email)) { showToast('Укажите корректный email', true); return; }
@@ -1665,17 +1679,17 @@
     $('#addDocTypeBtn').style.display = docTypesList.length >= 15 ? 'none' : 'inline-flex';
   }
 
-  $('#addDocTypeBtn').addEventListener('click', () => {
+  on('#addDocTypeBtn', 'click', () => {
     $('#addDocTypeForm').style.display = 'flex';
     $('#newDocTypeLabel').value = '';
     $('#newDocTypeExt').value = '';
     $('#addDocTypeBtn').style.display = 'none';
   });
-  $('#addDocTypeCancelBtn').addEventListener('click', () => {
+  on('#addDocTypeCancelBtn', 'click', () => {
     $('#addDocTypeForm').style.display = 'none';
     renderDocTypesList();
   });
-  $('#addDocTypeSaveBtn').addEventListener('click', async () => {
+  on('#addDocTypeSaveBtn', 'click', async () => {
     const label = $('#newDocTypeLabel').value.trim();
     const ext = $('#newDocTypeExt').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     if (!label || !ext.length) { showToast('Укажите название и хотя бы одно расширение', true); return; }
@@ -1690,7 +1704,7 @@
     } catch (err) { showToast(err.message, true); }
   });
 
-  $('#yearFilterSelect').addEventListener('change', e => {
+  on('#yearFilterSelect', 'change', e => {
     settings.activeYearFilter = e.target.value;
     saveSettings();
     renderAll();
@@ -1719,7 +1733,7 @@
     }
   }
 
-  $('#logoutBtn').addEventListener('click', async () => {
+  on('#logoutBtn', 'click', async () => {
     if (!confirm('Выйти из реестра?')) return;
     try { await fetch('auth_api.php?action=logout', { method: 'POST' }); } catch (e) { /* всё равно уходим */ }
     window.location.href = 'login.php';
@@ -1778,17 +1792,17 @@
     } catch (e) { $('#usersList').innerHTML = ''; }
   }
 
-  $('#addUserBtn').addEventListener('click', () => {
+  on('#addUserBtn', 'click', () => {
     $('#addUserForm').style.display = 'flex';
     $('#newUserLogin').value = '';
     $('#newUserPassword').value = '';
     $('#addUserBtn').style.display = 'none';
   });
-  $('#addUserCancelBtn').addEventListener('click', () => {
+  on('#addUserCancelBtn', 'click', () => {
     $('#addUserForm').style.display = 'none';
     $('#addUserBtn').style.display = 'inline-flex';
   });
-  $('#addUserSaveBtn').addEventListener('click', async () => {
+  on('#addUserSaveBtn', 'click', async () => {
     const username = $('#newUserLogin').value.trim();
     const password = $('#newUserPassword').value;
     if (!username || password.length < 6) { showToast('Укажите логин и пароль от 6 символов', true); return; }
@@ -1803,7 +1817,7 @@
     } catch (err) { showToast(err.message, true); }
   });
 
-  $('#changePasswordBtn').addEventListener('click', async () => {
+  on('#changePasswordBtn', 'click', async () => {
     const newPassword = $('#changePasswordInput').value;
     if (newPassword.length < 6) { showToast('Пароль должен быть не короче 6 символов', true); return; }
     try {
@@ -1838,7 +1852,7 @@
     } catch (e) { $('#smtpStatus').textContent = 'Не удалось получить статус'; }
   }
 
-  $('#smtpSaveBtn').addEventListener('click', async () => {
+  on('#smtpSaveBtn', 'click', async () => {
     const payload = {
       host: $('#smtpHost').value.trim(),
       port: Number($('#smtpPort').value) || 587,
@@ -1857,7 +1871,7 @@
     } catch (err) { showToast(err.message, true); }
   });
 
-  $('#smtpTestBtn').addEventListener('click', async () => {
+  on('#smtpTestBtn', 'click', async () => {
     const toEmail = $('#smtpTestEmail').value.trim();
     if (!toEmail) { showToast('Укажите адрес для теста', true); return; }
     showToast('Отправляю тестовое письмо…');
@@ -1871,18 +1885,18 @@
 
   $('#currentUsername').style.cursor = 'pointer';
   $('#currentUsername').title = 'Аккаунт, пользователи, SMTP, импорт/экспорт';
-  $('#currentUsername').addEventListener('click', () => {
+  on('#currentUsername', 'click', () => {
     $('#addUserForm').style.display = 'none';
     $('#addUserBtn').style.display = 'inline-flex';
     loadUsersList();
     loadSmtpSettings();
     userAccountOverlay.style.display = 'flex';
   });
-  $('#userAccountClose').addEventListener('click', () => userAccountOverlay.style.display = 'none');
-  $('#userAccountDone').addEventListener('click', () => userAccountOverlay.style.display = 'none');
+  on('#userAccountClose', 'click', () => userAccountOverlay.style.display = 'none');
+  on('#userAccountDone', 'click', () => userAccountOverlay.style.display = 'none');
   userAccountOverlay.addEventListener('click', e => { if (e.target === userAccountOverlay) userAccountOverlay.style.display = 'none'; });
 
-  $('#settingsBtn').addEventListener('click', () => {
+  on('#settingsBtn', 'click', () => {
     $$('input[name="tableWidthMode"]').forEach(r => { r.checked = (r.value === settings.tableWidthMode); });
     $('#registryWidthSelect').value = settings.registryWidth || '1400';
     populateYearFilterSelect();
@@ -1907,14 +1921,14 @@
     renderSettingsList();
     settingsOverlay.style.display = 'flex';
   });
-  $('#settingsClose').addEventListener('click', () => settingsOverlay.style.display = 'none');
-  $('#settingsDone').addEventListener('click', () => settingsOverlay.style.display = 'none');
+  on('#settingsClose', 'click', () => settingsOverlay.style.display = 'none');
+  on('#settingsDone', 'click', () => settingsOverlay.style.display = 'none');
   settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.style.display = 'none'; });
 
 
   // ---------- JSON import / export ----------
 
-  $('#exportJsonBtn').addEventListener('click', () => {
+  on('#exportJsonBtn', 'click', () => {
     const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1926,7 +1940,7 @@
   });
 
 
-  $('#importFileInput').addEventListener('change', async e => {
+  on('#importFileInput', 'change', async e => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
@@ -1950,9 +1964,9 @@
 
   // ---------- Selection bulk bar / xlsx export ----------
 
-  $('#clearSelectionBtn').addEventListener('click', () => { selectedIds.clear(); renderTable(); updateBulkBar(); });
+  on('#clearSelectionBtn', 'click', () => { selectedIds.clear(); renderTable(); updateBulkBar(); });
 
-  $('#exportXlsxBtn').addEventListener('click', () => {
+  on('#exportXlsxBtn', 'click', () => {
     if (selectedIds.size === 0) return;
     const cols = visibleColumns();
     const selectedRows = rows.filter(r => selectedIds.has(r.id));
@@ -1989,7 +2003,7 @@
     }
   }
 
-  $('#crmFieldsBtn').addEventListener('click', () => {
+  on('#crmFieldsBtn', 'click', () => {
     const selected = getSelectedRowsSortedByDate();
     if (!selected.length) { showToast('Сначала отметьте вебинары чекбоксом', true); return; }
     const lines = selected.map(r => `${formatDateRu(r.date)} ${r.speaker}`);
@@ -2001,15 +2015,15 @@
     $('#crmFieldsCount').textContent = `${selected.length} стро${selected.length === 1 ? 'ка' : 'к'}`;
     crmFieldsOverlay.style.display = 'flex';
   });
-  $('#crmFieldsClose').addEventListener('click', () => crmFieldsOverlay.style.display = 'none');
-  $('#crmFieldsCloseBtn').addEventListener('click', () => crmFieldsOverlay.style.display = 'none');
+  on('#crmFieldsClose', 'click', () => crmFieldsOverlay.style.display = 'none');
+  on('#crmFieldsCloseBtn', 'click', () => crmFieldsOverlay.style.display = 'none');
   crmFieldsOverlay.addEventListener('click', e => { if (e.target === crmFieldsOverlay) crmFieldsOverlay.style.display = 'none'; });
-  $('#crmFieldsCopyBtn').addEventListener('click', async () => {
+  on('#crmFieldsCopyBtn', 'click', async () => {
     const ok = await copyTextToClipboard($('#crmFieldsText').value);
     if (ok) showToast('Скопирован список 1');
     else { $('#crmFieldsText').select(); showToast('Не удалось скопировать автоматически — текст выделен, нажмите Ctrl+C', true); }
   });
-  $('#crmFieldsCopyBtn2').addEventListener('click', async () => {
+  on('#crmFieldsCopyBtn2', 'click', async () => {
     const ok = await copyTextToClipboard($('#crmFieldsText2').value);
     if (ok) showToast('Скопирован список 2');
     else { $('#crmFieldsText2').select(); showToast('Не удалось скопировать автоматически — текст выделен, нажмите Ctrl+C', true); }
@@ -2090,7 +2104,7 @@
     }));
   }
 
-  $('#sendExportFieldsGearBtn').addEventListener('click', () => {
+  on('#sendExportFieldsGearBtn', 'click', () => {
     const panel = $('#sendExportFieldsPanel');
     const willOpen = panel.style.display === 'none';
     if (willOpen) { renderSendExportFieldsPanel(); panel.style.display = 'block'; }
@@ -2115,7 +2129,7 @@
     }));
   }
 
-  $('#sendExportBtn').addEventListener('click', () => {
+  on('#sendExportBtn', 'click', () => {
     const selected = getSelectedRowsSortedByDate();
     if (!selected.length) { showToast('Сначала отметьте вебинары чекбоксом', true); return; }
     sendExportSelectedRows = selected;
@@ -2125,11 +2139,11 @@
     renderSendExportRecipients();
     sendExportOverlay.style.display = 'flex';
   });
-  $('#sendExportClose').addEventListener('click', () => sendExportOverlay.style.display = 'none');
-  $('#sendExportCloseBtn').addEventListener('click', () => sendExportOverlay.style.display = 'none');
+  on('#sendExportClose', 'click', () => sendExportOverlay.style.display = 'none');
+  on('#sendExportCloseBtn', 'click', () => sendExportOverlay.style.display = 'none');
   sendExportOverlay.addEventListener('click', e => { if (e.target === sendExportOverlay) sendExportOverlay.style.display = 'none'; });
 
-  $('#sendExportCopyBtn').addEventListener('click', async () => {
+  on('#sendExportCopyBtn', 'click', async () => {
     const html = $('#sendExportTableWrap').innerHTML;
     try {
       const item = new ClipboardItem({
@@ -2162,7 +2176,7 @@
 
   const EXPORT_LINK_FIELDS = new Set(['link_participant', 'link_host', 'link_materials', 'link_recording', 'doc_official_letter', 'doc_program', 'doc_invitation']);
 
-  $('#sendExportMailBtn').addEventListener('click', async () => {
+  on('#sendExportMailBtn', 'click', async () => {
     const checked = $$('#sendExportRecipients input:checked').map(b => b.value);
     const custom = $('#sendExportCustomEmail').value.split(',').map(s => s.trim()).filter(Boolean);
     const to = Array.from(new Set([...checked, ...custom]));
@@ -2238,18 +2252,18 @@
     } catch (e) { $('#subGenStatus').textContent = 'Не удалось получить статус'; }
   }
 
-  $('#subGenBtn').addEventListener('click', () => {
+  on('#subGenBtn', 'click', () => {
     renderSubGenCategories();
     loadSubGenStatus();
     subGenOverlay.style.display = 'flex';
   });
-  $('#subGenClose').addEventListener('click', () => subGenOverlay.style.display = 'none');
-  $('#subGenCloseBtn').addEventListener('click', () => subGenOverlay.style.display = 'none');
+  on('#subGenClose', 'click', () => subGenOverlay.style.display = 'none');
+  on('#subGenCloseBtn', 'click', () => subGenOverlay.style.display = 'none');
   subGenOverlay.addEventListener('click', e => { if (e.target === subGenOverlay) subGenOverlay.style.display = 'none'; });
 
-  $('#subGenCopyLinkBtn').addEventListener('click', () => copyLinkWithToast(subGenPublicUrl()));
+  on('#subGenCopyLinkBtn', 'click', () => copyLinkWithToast(subGenPublicUrl()));
 
-  $('#subGenGenerateBtn').addEventListener('click', async () => {
+  on('#subGenGenerateBtn', 'click', async () => {
     const categories = $$('#subGenCategories input:checked').map(b => b.value);
     if (!categories.length) { showToast('Выберите хотя бы одну категорию', true); return; }
     try {
@@ -2287,7 +2301,7 @@
     }
   }
 
-  $('#contractTemplateFile').addEventListener('change', async e => {
+  on('#contractTemplateFile', 'change', async e => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
@@ -2326,7 +2340,7 @@
     copyLinkBtn.addEventListener('click', () => copyLinkWithToast(contractTemplatePublicUrl()));
   }
 
-  $('#contractGenBtn').addEventListener('click', async () => {
+  on('#contractGenBtn', 'click', async () => {
     const selected = getSelectedRowsSortedByDate();
     if (!selected.length) { showToast('Сначала отметьте вебинары чекбоксом', true); return; }
     try {
@@ -2359,19 +2373,19 @@
     }
   });
 
-  $('#contractGenClose').addEventListener('click', () => contractGenOverlay.style.display = 'none');
-  $('#contractGenCloseBtn').addEventListener('click', () => contractGenOverlay.style.display = 'none');
+  on('#contractGenClose', 'click', () => contractGenOverlay.style.display = 'none');
+  on('#contractGenCloseBtn', 'click', () => contractGenOverlay.style.display = 'none');
   contractGenOverlay.addEventListener('click', e => { if (e.target === contractGenOverlay) contractGenOverlay.style.display = 'none'; });
 
-  $('#contractGenCopyLinkBtn').addEventListener('click', () => copyLinkWithToast(contractTemplatePublicUrl()));
+  on('#contractGenCopyLinkBtn', 'click', () => copyLinkWithToast(contractTemplatePublicUrl()));
 
-  $('#contractGenCopyBtn').addEventListener('click', async () => {
+  on('#contractGenCopyBtn', 'click', async () => {
     const ok = await copyTextToClipboard($('#contractGenText').value);
     if (ok) showToast('Скопировано');
     else { $('#contractGenText').select(); showToast('Не удалось скопировать автоматически — текст выделен, нажмите Ctrl+C', true); }
   });
 
-  $('#contractGenDownloadBtn').addEventListener('click', () => {
+  on('#contractGenDownloadBtn', 'click', () => {
     if (!contractGenLatestTemplate) return;
     const blob = new Blob([JSON.stringify(contractGenLatestTemplate, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -2433,6 +2447,25 @@
     const closeBtn = top.querySelector('.modal-header .icon-btn');
     if (closeBtn) closeBtn.click();
     else top.style.display = 'none';
+  });
+
+  // ---------- Горячие клавиши: N — новый вебинар, / — в поиск ----------
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'n' && e.key !== 'N' && e.key !== 'т' && e.key !== 'Т' && e.key !== '/') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    // Не срабатываем, пока открыто любое модальное окно
+    if ($$('.modal-overlay').some(el => el.style.display !== 'none' && el.style.display !== '')) return;
+    if (e.key === '/') {
+      e.preventDefault();
+      const s = $('#searchInput');
+      if (s) s.focus();
+    } else {
+      e.preventDefault();
+      const add = $('#addBtn');
+      if (add) add.click();
+    }
   });
 
   async function loadLandingMeta() {
@@ -2552,7 +2585,7 @@
     })).filter(b => b.label);
   }
 
-  $('#lp_addCustomButtonBtn').addEventListener('click', () => addCustomButtonRow());
+  on('#lp_addCustomButtonBtn', 'click', () => addCustomButtonRow());
 
   function setImagePreview(el, url) {
     if (url) {
@@ -2604,7 +2637,7 @@
     setImagePreview($('#lp_backgroundPreview'), '');
   });
 
-  $('#lp_backgroundFile').addEventListener('change', async e => {
+  on('#lp_backgroundFile', 'change', async e => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
@@ -2616,7 +2649,7 @@
     } catch (err) { showToast(err.message, true); }
   });
 
-  $('#lp_backgroundIntensity').addEventListener('input', e => {
+  on('#lp_backgroundIntensity', 'input', e => {
     landingBackgroundIntensity = Number(e.target.value);
     $('#lp_backgroundIntensityVal').textContent = `${landingBackgroundIntensity}%`;
   });
@@ -2723,11 +2756,11 @@
     };
   }
 
-  $('#openLandingBtn').addEventListener('click', openLandingModal);
-  $('#landingClose').addEventListener('click', closeLandingModal);
+  on('#openLandingBtn', 'click', openLandingModal);
+  on('#landingClose', 'click', closeLandingModal);
   landingOverlay.addEventListener('click', e => { if (e.target === landingOverlay) closeLandingModal(); });
 
-  $('#lp_saveDefaultBtn').addEventListener('click', () => {
+  on('#lp_saveDefaultBtn', 'click', () => {
     settings.landingDefaultTemplate = {
       themePreset: landingThemeKey,
       dateFontPx: landingFontSizes.dateFontPx,
@@ -2846,7 +2879,7 @@
     setImagePreview($('#bulk_lp_backgroundPreview'), '');
   });
 
-  $('#bulk_lp_backgroundFile').addEventListener('change', async e => {
+  on('#bulk_lp_backgroundFile', 'change', async e => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
@@ -2858,12 +2891,12 @@
     } catch (err) { showToast(err.message, true); }
   });
 
-  $('#bulk_lp_backgroundIntensity').addEventListener('input', e => {
+  on('#bulk_lp_backgroundIntensity', 'input', e => {
     bulkBackgroundIntensity = Number(e.target.value);
     $('#bulk_lp_backgroundIntensityVal').textContent = `${bulkBackgroundIntensity}%`;
   });
 
-  $('#bulk_lp_templateSelect').addEventListener('change', e => {
+  on('#bulk_lp_templateSelect', 'change', e => {
     const name = e.target.value;
     const tpl = name ? settings.landingTemplates[name] : (settings.landingDefaultTemplate || {});
     if (!tpl) return;
@@ -2956,7 +2989,7 @@
     }));
   }
 
-  $('#bulk_sendExportFieldsGearBtn').addEventListener('click', () => {
+  on('#bulk_sendExportFieldsGearBtn', 'click', () => {
     const panel = $('#bulk_sendExportFieldsPanel');
     const willOpen = panel.style.display === 'none';
     if (willOpen) { renderBulkSendExportFieldsPanel(); panel.style.display = 'block'; }
@@ -3020,7 +3053,7 @@
     return s ? `«${s}»` : '';
   }
 
-  $('#bulkEditBtn').addEventListener('click', async () => {
+  on('#bulkEditBtn', 'click', async () => {
     const selected = getSelectedRowsSortedByDate();
     if (!selected.length) { showToast('Сначала отметьте вебинары чекбоксом', true); return; }
 
@@ -3063,11 +3096,11 @@
     bulkEditOverlay.style.display = 'flex';
   });
 
-  if ($('#bulkEditClose')) $('#bulkEditClose').addEventListener('click', () => bulkEditOverlay.style.display = 'none');
-  if ($('#bulkEditCancelBtn')) $('#bulkEditCancelBtn').addEventListener('click', () => bulkEditOverlay.style.display = 'none');
+  if ($('#bulkEditClose')) on('#bulkEditClose', 'click', () => bulkEditOverlay.style.display = 'none');
+  if ($('#bulkEditCancelBtn')) on('#bulkEditCancelBtn', 'click', () => bulkEditOverlay.style.display = 'none');
 
   // Сохранить все изменения из таблицы
-  $('#bulkEditSaveBtn').addEventListener('click', async () => {
+  on('#bulkEditSaveBtn', 'click', async () => {
     const rowsToSave = [];
     const trs = Array.from(document.querySelectorAll('#bulkEditTableBody tr'));
     
@@ -3117,7 +3150,7 @@
   });
 
   // Сохранение шаблона прямо из массового редактирования
-  $('#bulk_lp_saveTemplateBtn').addEventListener('click', async () => {
+  on('#bulk_lp_saveTemplateBtn', 'click', async () => {
     const name = $('#bulk_lp_newTemplateName').value.trim();
     if (!name) { showToast('Укажите имя для шаблона', true); return; }
     if (!settings.landingTemplates) settings.landingTemplates = {};
@@ -3165,7 +3198,7 @@
     return json.data;
   }
 
-  $('#bulk_lp_generateBtn').addEventListener('click', async () => {
+  on('#bulk_lp_generateBtn', 'click', async () => {
     const trs = Array.from(document.querySelectorAll('#bulkEditTableBody tr'));
     if (!trs.length) return;
 
@@ -3330,9 +3363,41 @@
     };
   }
 
+  // Поля, которые НЕ считают строку «заполненной»: организатор/направление/размещён/подписка
+  // подставляются и наследуются автоматически — они не должны блокировать пропуск пустых строк.
+  const BULK_ADD_TYPED_FIELDS = ['date', 'title', 'price', 'speaker', 'mailing_list',
+    'link_participant', 'link_host', 'link_materials', 'link_recording', 'moderator_code'];
+
+  /** Читает строку таблицы: payload для создания + активна ли строка (введены ли данные). */
+  function bulkAddReadRow(tr) {
+    const get = f => { const el = tr.querySelector(`[data-ba-field="${f}"]`); return el ? String(el.value).trim() : ''; };
+    const payload = {
+      date: get('date'), price: get('price'), organizer: get('organizer'), speaker: get('speaker'),
+      title: get('title'), direction: get('direction'), mailing_list: get('mailing_list'),
+      published_on_site: get('published_on_site'), subscription: get('subscription'),
+      link_participant: get('link_participant'), link_host: get('link_host'),
+      link_materials: get('link_materials'), link_recording: get('link_recording'),
+      moderator_code: get('moderator_code'),
+      doc_official_letter: '', doc_program: '', doc_invitation: '',
+    };
+    let customAny = false;
+    tr.querySelectorAll('[data-ba-custom]').forEach(el => {
+      const isBool = el.dataset.baType === 'boolean';
+      const v = isBool ? (el.checked ? '1' : '') : String(el.value).trim();
+      payload[el.dataset.baCustom] = v;
+      if (v) customAny = true;
+    });
+    const active = customAny || BULK_ADD_TYPED_FIELDS.some(f => payload[f] !== '');
+    return { payload, active };
+  }
+
   function updateBulkAddRowCount() {
     const el = $('#bulkAddRowCount');
-    if (el) el.textContent = `Строк: ${$$('#bulkAddTableBody tr').length}`;
+    if (!el) return;
+    const trs = $$('#bulkAddTableBody tr');
+    let active = 0;
+    trs.forEach(tr => { if (bulkAddReadRow(tr).active) active++; });
+    el.textContent = `Строк: ${trs.length} · будет создано: ${active}`;
   }
 
   function addBulkAddRow(preset) {
@@ -3351,12 +3416,12 @@
     bulkAddOverlay.style.display = 'flex';
   }
 
-  $('#bulkAddBtn').addEventListener('click', openBulkAddModal);
-  $('#bulkAddClose').addEventListener('click', () => { bulkAddOverlay.style.display = 'none'; });
-  $('#bulkAddCancelBtn').addEventListener('click', () => { bulkAddOverlay.style.display = 'none'; });
-  $('#bulkAddRowBtn').addEventListener('click', () => addBulkAddRow(lastBulkAddPreset()));
+  on('#bulkAddBtn', 'click', openBulkAddModal);
+  on('#bulkAddClose', 'click', () => { bulkAddOverlay.style.display = 'none'; });
+  on('#bulkAddCancelBtn', 'click', () => { bulkAddOverlay.style.display = 'none'; });
+  on('#bulkAddRowBtn', 'click', () => addBulkAddRow(lastBulkAddPreset()));
 
-  $('#bulkAddTableBody').addEventListener('click', e => {
+  on('#bulkAddTableBody', 'click', e => {
     if (!e.target.closest('[data-ba-del]')) return;
     const trs = $$('#bulkAddTableBody tr');
     if (trs.length <= 1) { showToast('Нужна хотя бы одна строка', true); return; }
@@ -3368,35 +3433,33 @@
     updateBulkAddRowCount();
   });
 
-  $('#bulkAddSubmitBtn').addEventListener('click', async () => {
+  // Живой счётчик «будет создано» при любом изменении полей
+  on('#bulkAddTableBody', 'input', updateBulkAddRowCount);
+  on('#bulkAddTableBody', 'change', updateBulkAddRowCount);
+
+  // Ctrl/Cmd + Enter — отправка из любой ячейки таблицы
+  on('#bulkAddOverlay', 'keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      const btn = $('#bulkAddSubmitBtn');
+      if (btn) btn.click();
+    }
+  });
+
+  on('#bulkAddSubmitBtn', 'click', async () => {
     const trs = $$('#bulkAddTableBody tr');
-    const coreFields = ['date', 'price', 'organizer', 'speaker', 'title', 'direction', 'mailing_list',
-      'published_on_site', 'subscription', 'link_participant', 'link_host', 'link_materials',
-      'link_recording', 'moderator_code'];
+    trs.forEach(tr => tr.classList.remove('bulk-add-row-invalid'));
     const items = [];
     trs.forEach((tr, i) => {
-      const get = f => { const el = tr.querySelector(`[data-ba-field="${f}"]`); return el ? String(el.value).trim() : ''; };
-      const payload = {
-        date: get('date'), price: get('price'), organizer: get('organizer'), speaker: get('speaker'),
-        title: get('title'), direction: get('direction'), mailing_list: get('mailing_list'),
-        published_on_site: get('published_on_site'), subscription: get('subscription'),
-        link_participant: get('link_participant'), link_host: get('link_host'),
-        link_materials: get('link_materials'), link_recording: get('link_recording'),
-        moderator_code: get('moderator_code'),
-        doc_official_letter: '', doc_program: '', doc_invitation: '',
-      };
-      let customAny = false;
-      tr.querySelectorAll('[data-ba-custom]').forEach(el => {
-        const isBool = el.dataset.baType === 'boolean';
-        const v = isBool ? (el.checked ? '1' : '') : String(el.value).trim();
-        payload[el.dataset.baCustom] = v;
-        if (v) customAny = true;
-      });
-      const coreAny = coreFields.some(f => payload[f] !== '');
-      if (coreAny || customAny) items.push({ num: i + 1, payload });
+      const { payload, active } = bulkAddReadRow(tr);
+      if (active) items.push({ num: i + 1, payload, tr });
     });
 
-    if (!items.length) { showToast('Нет заполненных строк', true); return; }
+    if (!items.length) { showToast('Нет заполненных строк — введите данные хотя бы в одной', true); return; }
+
+    // Валидация: подсвечиваем все проблемные строки и прокручиваем к первой.
+    const labelToField = { 'дата': 'date', 'цена больше нуля': 'price', 'организатор': 'organizer', 'спикер': 'speaker', 'тема': 'title' };
+    let firstInvalid = null;
     for (const it of items) {
       const p = it.payload;
       const missing = [];
@@ -3405,7 +3468,18 @@
       if (!p.organizer) missing.push('организатор');
       if (!p.speaker) missing.push('спикер');
       if (!p.title) missing.push('тема');
-      if (missing.length) { showToast(`Строка ${it.num}: заполните — ${missing.join(', ')}`, true); return; }
+      if (missing.length) {
+        it.tr.classList.add('bulk-add-row-invalid');
+        if (!firstInvalid) firstInvalid = { num: it.num, tr: it.tr, missing };
+      }
+    }
+    if (firstInvalid) {
+      firstInvalid.tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const field = firstInvalid.missing.map(m => labelToField[m]).find(Boolean);
+      const focusEl = field ? firstInvalid.tr.querySelector(`[data-ba-field="${field}"]`) : null;
+      if (focusEl && focusEl.focus) focusEl.focus();
+      showToast(`Строка ${firstInvalid.num}: заполните — ${firstInvalid.missing.join(', ')}`, true);
+      return;
     }
 
     const btn = $('#bulkAddSubmitBtn');
@@ -3452,7 +3526,7 @@
   });
 
   // Копирование таблицы Outlook
-  $('#bulk_sendExportCopyBtn').addEventListener('click', async () => {
+  on('#bulk_sendExportCopyBtn', 'click', async () => {
     const html = $('#bulk_sendExportTableWrap').innerHTML;
     try {
       const item = new ClipboardItem({
@@ -3478,7 +3552,7 @@
   });
 
   // Отправка таблицы на почту из массового редактирования
-  $('#bulk_sendExportMailBtn').addEventListener('click', async () => {
+  on('#bulk_sendExportMailBtn', 'click', async () => {
     const checked = $$('#bulk_sendExportRecipients input:checked').map(b => b.value);
     const custom = $('#bulk_sendExportCustomEmail').value.split(',').map(s => s.trim()).filter(Boolean);
     const to = Array.from(new Set([...checked, ...custom]));
@@ -3542,7 +3616,7 @@
     return json.data;
   }
 
-  $('#landingPublishBtn').addEventListener('click', async () => {
+  on('#landingPublishBtn', 'click', async () => {
     try {
       const data = await publishLanding();
       $('#f_link_participant').value = data.publicUrl;
@@ -3571,36 +3645,44 @@
   // ---------- Init ----------
 
   (async function init() {
-    try {
-      await loadCurrentUser();
-      await loadColumns();
-      await loadOrganizers();
-      await loadMailingLists();
-      await loadDirections();
-      await loadSpeakers();
-      await loadPublishedOnSiteList();
-      await loadInSubscriptionList();
-      await loadDocTypes();
-      await loadSettingsFromServer();
-      loadFiltersFromSettings();
-      applyRegistryWidth();
-      await loadLandingMeta();
-      await loadRows();
-      renderAll();
-      $('#dataTable').addEventListener('dblclick', e => {
-        const td = e.target.closest('td.title-cell');
-        if (!td) return;
-        const tr = td.closest('tr');
-        if (!tr) return;
-        const id = Number(tr.dataset.id);
-        if (!isNaN(id)) {
-          openModal(id);
-        }
-      });
-    } catch (err) {
-      $('#tableHead').innerHTML = '';
-      $('#tableBody').innerHTML = `<tr><td><div class="empty-state"><strong>Не удалось загрузить данные</strong>${escapeHtml(err.message)}</div></td></tr>`;
+    // Каждая загрузка изолирована: сбой одного справочника/запроса не должен
+    // убивать всю инициализацию (раньше один плохой ответ гасил всё приложение).
+    const step = async (label, fn) => {
+      try { await fn(); return null; }
+      catch (err) { console.error(`[init] ${label}:`, err); return err; }
+    };
+
+    await step('user', loadCurrentUser);
+    await step('columns', loadColumns);
+    await step('organizers', loadOrganizers);
+    await step('mailingLists', loadMailingLists);
+    await step('directions', loadDirections);
+    await step('speakers', loadSpeakers);
+    await step('publishedOnSite', loadPublishedOnSiteList);
+    await step('subscription', loadInSubscriptionList);
+    await step('docTypes', loadDocTypes);
+    await step('settings', loadSettingsFromServer);
+    try { loadFiltersFromSettings(); } catch (err) { console.error('[init] filters:', err); }
+    try { applyRegistryWidth(); } catch (err) { console.error('[init] width:', err); }
+    await step('landingMeta', loadLandingMeta);
+    const rowsErr = await step('rows', loadRows);
+
+    renderAll();
+
+    if (rowsErr) {
+      $('#tableBody').innerHTML = `<tr><td><div class="empty-state"><strong>Не удалось загрузить данные</strong>${escapeHtml(rowsErr.message)}</div></td></tr>`;
     }
+
+    on('#dataTable', 'dblclick', e => {
+      const td = e.target.closest('td.title-cell');
+      if (!td) return;
+      const tr = td.closest('tr');
+      if (!tr) return;
+      const id = Number(tr.dataset.id);
+      if (!isNaN(id)) {
+        openModal(id);
+      }
+    });
   })();
 
 })();

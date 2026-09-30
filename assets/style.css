@@ -1281,3 +1281,12 @@ td.recording-overdue { background: #FBE7E4 !important; }
   .modal-body { grid-template-columns: 1fr; }
   .stat-strip { width: 100%; }
 }
+
+/* ---------- Массовое добавление: подсветка невалидных строк ---------- */
+.bulk-add-row-invalid {
+  outline: 2px solid #e5484d;
+  outline-offset: -2px;
+}
+.bulk-add-row-invalid td {
+  background: #fff1f1;
+}
