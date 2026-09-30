@@ -205,9 +205,9 @@ try {
         $oldFileName = $clean['generatedFileName'];
         $fileName = $oldFileName;
         if ($fileName === '' || $forceNewName || !is_file($targetDir . '/' . $fileName)) {
-            $linkLength = (int)($settings['landingLinkLength'] ?? 6);
+            $linkLength = (int)($settings['landingLinkLength'] ?? 4);
             if ($linkLength < 4 || $linkLength > 32) {
-                $linkLength = 6;
+                $linkLength = 4;
             }
             $fileName = lp_generate_file_id($targetDir, $linkLength) . '.html';
         }

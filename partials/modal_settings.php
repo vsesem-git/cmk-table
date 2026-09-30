@@ -68,7 +68,7 @@
             </div>
             <div class="settings-row" style="border-bottom:none">
               <span class="col-label" style="flex:0 0 auto; font-size:13px;">Длина окончания ссылки (символов)</span>
-              <input type="number" id="landingLinkLengthInput" min="4" max="32" placeholder="6" style="width:80px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px; margin-left: 10px;">
+              <input type="number" id="landingLinkLengthInput" min="4" max="32" placeholder="4" style="width:80px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px; margin-left: 10px;">
             </div>
           </div>
 

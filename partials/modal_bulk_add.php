@@ -7,13 +7,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding: 14px 18px; overflow: auto;">
-      <div class="hint" style="margin-bottom: 10px;">
-        <i class="fa-solid fa-circle-info"></i> Колонки как в форме «Новый вебинар», кроме документов. Пустые строки не сохраняются; для каждой строки обязательны дата, тема, организатор, спикер и цена.
-      </div>
+    <div class="modal-body modal-body-stack" style="padding: 14px 18px; overflow: auto;">
 
       <div style="border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 60vh; background: #fff;">
-        <table id="bulkAddTable" class="bulk-add-table" style="width: 100%; border-collapse: collapse; min-width: 1900px; font-size: 13px;">
+        <table id="bulkAddTable" class="bulk-add-table" style="width: 100%; border-collapse: collapse; min-width: 2050px; font-size: 13px;">
           <thead id="bulkAddTableHead"></thead>
           <tbody id="bulkAddTableBody"></tbody>
         </table>
@@ -24,12 +21,32 @@
         <span class="hint" id="bulkAddRowCount"></span>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
-        <label class="auto-gen-toggle" title="Сразу после создания опубликовать страницу участника по шаблону по умолчанию">
-          <input type="checkbox" id="bulkAddAutoPublish" checked>
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-        </label>
-        <span style="font-size: 13px;">Автоматически опубликовать страницы участников <span class="hint">(по шаблону по умолчанию)</span></span>
+      <!-- Настройки публикации страниц участников -->
+      <div class="accordion" data-accordion="bulkadd-publish" style="margin-top: 12px; border: 1px solid var(--line); border-radius: 8px;">
+        <button type="button" class="accordion-header">
+          <span><i class="fa-solid fa-upload"></i> Публикация страниц участников</span>
+          <span class="accordion-arrow">▾</span>
+        </button>
+        <div class="accordion-body" style="padding: 12px 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            <label class="auto-gen-toggle" title="Сразу после создания опубликовать страницу участника">
+              <input type="checkbox" id="bulkAddAutoPublish" checked>
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+            <span style="font-size: 13px;">Автоматически опубликовать страницы участников</span>
+          </div>
+
+          <div style="margin-bottom: 10px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-palette"></i> Шаблон оформления</label>
+            <select id="bulkAddLpTemplate" style="width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px; background: #fff;"></select>
+            <div class="hint" style="margin-top: 4px;">«По умолчанию» — из настроек; для вебинаров организатора «КОДЕКС» по умолчанию используется тема КОДЕКС.</div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-link"></i> Длина кода ссылки</label>
+            <input type="number" id="bulkAddLinkLength" min="4" max="32" value="4" style="width: 140px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px;">
+          </div>
+        </div>
       </div>
 
       <div class="landing-status" id="bulkAddStatus" style="margin-top: 8px;"></div>

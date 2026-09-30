@@ -69,7 +69,7 @@
   function defaultSettings() {
     return {
       hidden: [], linkAsText: [], colWidths: {}, tableWidthMode: 'scroll', landingOutputBase: '',
-      landingLinkLength: 6,
+      landingLinkLength: 4,
       landingPortsText: 'Откройте порты TCP:443 UDP:16384 - 32768',
       landingSupportText: 'Техническая поддержка',
       landingSupportPhone: '+7 910 154 76 86',
@@ -128,6 +128,11 @@
     const bulkSel = $('#bulk_lp_templateSelect');
     if (bulkSel) {
       bulkSel.innerHTML = '<option value="">-- Шаблон по умолчанию --</option>' + keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+    }
+
+    const baSel = $('#bulkAddLpTemplate');
+    if (baSel) {
+      baSel.innerHTML = '<option value="">-- Шаблон по умолчанию --</option>' + keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
     }
   }
 
@@ -1902,7 +1907,7 @@
     populateYearFilterSelect();
     loadContractTemplateStatus();
     $('#landingOutputBaseInput').value = settings.landingOutputBase || '';
-    $('#landingLinkLengthInput').value = settings.landingLinkLength || 6;
+    $('#landingLinkLengthInput').value = settings.landingLinkLength || 4;
     $('#landingBrowserTextInput').value = settings.landingBrowserText || '';
     $('#landingPortsTextInput').value = settings.landingPortsText || '';
     $('#landingSupportTextInput').value = settings.landingSupportText || '';
@@ -3083,7 +3088,7 @@
     $('#bulk_lp_themeAccordion').classList.remove('open');
     $('#bulk_lp_backgroundGallery').style.display = 'none';
 
-    $('#bulk_lp_linkLength').value = settings.landingLinkLength || 6;
+    $('#bulk_lp_linkLength').value = settings.landingLinkLength || 4;
     $('#bulk_lp_regenerateCode').checked = false;
     $('#bulk_lp_newTemplateName').value = '';
 
@@ -3296,7 +3301,7 @@
     const cols = [
       { label: '№', w: '40px' },
       { label: 'Дата *', w: '132px' },
-      { label: 'Тема *', w: '250px' },
+      { label: 'Тема *', w: '340px' },
       { label: 'Организатор', w: '150px' },
       { label: 'Спикер', w: '160px' },
       { label: 'Цена, ₽ *', w: '96px' },
@@ -3324,9 +3329,9 @@
     let html = '<tr data-ba-row>';
     html += td(`<span style="font-weight:700; color:#9aa3af; font-size:12px;">${idx}</span>`);
     html += td(`<input type="date" data-ba-field="date" value="${escapeHtml(p.date || '')}" style="${cs}">`);
-    html += td(`<textarea data-ba-field="title" placeholder="Тема вебинара" style="${cs} height:34px; resize:vertical; line-height:1.3;">${escapeHtml(p.title || '')}</textarea>`);
+    html += td(`<textarea data-ba-field="title" placeholder="Тема вебинара" style="${cs} height:44px; min-height:44px; resize:vertical; line-height:1.35;">${escapeHtml(p.title || '')}</textarea>`);
     html += td(baSelectHtml('organizer', organizersList, p.organizer !== undefined ? p.organizer : (organizersList[0] ? organizersList[0].name : '')));
-    html += td(baSelectHtml('speaker', speakersList, p.speaker || ''));
+    html += td(`<div style="display:flex; gap:4px; align-items:center;">${baSelectHtml('speaker', speakersList, p.speaker || '')}<button type="button" class="btn btn-ghost" data-ba-addspeaker title="Добавить спикера" style="padding:4px 9px; height:32px; flex:0 0 auto;"><i class="fa-solid fa-plus"></i></button></div>`);
     html += td(baInputHtml('price', p.price, '0', 'number'));
     html += td(baSelectHtml('direction', directionsList, p.direction || ''));
     html += td(baInputHtml('mailing_list', p.mailing_list, 'через запятую'));
@@ -3408,6 +3413,12 @@
 
   function openBulkAddModal() {
     $('#bulkAddStatus').innerHTML = '';
+    // Настройки публикации: шаблон из сохранённых + длина кода ссылки (по умолчанию 4)
+    populateTemplatesDropdowns();
+    const linkLengthInput = $('#bulkAddLinkLength');
+    if (linkLengthInput) linkLengthInput.value = settings.landingLinkLength || 4;
+    const acc = bulkAddOverlay.querySelector('.accordion');
+    if (acc) acc.classList.remove('open');
     renderBulkAddHead();
     $('#bulkAddTableBody').innerHTML = '';
     addBulkAddRow(organizersList[0] ? { organizer: organizersList[0].name } : {});
@@ -3436,6 +3447,41 @@
   // Живой счётчик «будет создано» при любом изменении полей
   on('#bulkAddTableBody', 'input', updateBulkAddRowCount);
   on('#bulkAddTableBody', 'change', updateBulkAddRowCount);
+
+  // Тема: высота поля растёт вниз по вставленному содержимому
+  on('#bulkAddTableBody', 'input', e => {
+    if (e.target && e.target.matches && e.target.matches('textarea[data-ba-field="title"]')) {
+      e.target.style.height = 'auto';
+      e.target.style.height = Math.max(44, e.target.scrollHeight) + 'px';
+    }
+  });
+
+  // Добавление спикера прямо из таблицы (кнопка «+» рядом с селектом)
+  on('#bulkAddTableBody', 'click', async e => {
+    const btn = e.target.closest('[data-ba-addspeaker]');
+    if (!btn) return;
+    const tr = btn.closest('tr');
+    const sel = tr ? tr.querySelector('[data-ba-field="speaker"]') : null;
+    if (!sel) return;
+    const name = (prompt('ФИО нового спикера:') || '').trim();
+    if (!name) return;
+    try {
+      const res = await fetch(`${TAXONOMY_API}?type=speaker`, { method: 'POST', body: JSON.stringify({ name }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Не удалось добавить спикера');
+      await loadSpeakers();
+      // Обновляем селекты спикеров во всех строках, сохраняя выбранные значения
+      $$('#bulkAddTableBody [data-ba-field="speaker"]').forEach(s => {
+        const cur = s.value;
+        s.innerHTML = '<option value="">—</option>' + speakersList.map(o =>
+          `<option value="${escapeHtml(o.name)}" ${o.name === cur ? 'selected' : ''}>${escapeHtml(o.name)}</option>`).join('');
+      });
+      const fresh = tr.querySelector('[data-ba-field="speaker"]');
+      if (fresh) fresh.value = json.data.name;
+      updateBulkAddRowCount();
+      showToast(`Спикер «${json.data.name}» добавлен`);
+    } catch (err) { showToast(err.message, true); }
+  });
 
   // Ctrl/Cmd + Enter — отправка из любой ячейки таблицы
   on('#bulkAddOverlay', 'keydown', e => {
@@ -3484,12 +3530,50 @@
 
     const btn = $('#bulkAddSubmitBtn');
     const autoPub = $('#bulkAddAutoPublish').checked;
+    const tplSel = $('#bulkAddLpTemplate');
+    const tplName = tplSel ? tplSel.value : '';
+    const linkLenInput = $('#bulkAddLinkLength');
     btn.disabled = true;
     try {
-      if (autoPub) {
-        if (!landingMeta.themes.length) await loadLandingMeta();
-        applyDefaultTemplate();
+      // Длина кода ссылки — из аккордеона (по умолчанию 4); сохраняем при публикации,
+      // чтобы серверная генерация ссылок использовала то же значение.
+      if (autoPub && linkLenInput) {
+        const linkLen = parseInt(linkLenInput.value, 10);
+        if (linkLen >= 4 && linkLen <= 32) {
+          settings.landingLinkLength = linkLen;
+          await saveSettings();
+        }
       }
+
+      // Основа оформления: явно выбранный шаблон или шаблон по умолчанию
+      let tplBase = {};
+      let explicitTpl = false;
+      if (tplName && settings.landingTemplates && settings.landingTemplates[tplName]) {
+        tplBase = settings.landingTemplates[tplName];
+        explicitTpl = true;
+      } else {
+        tplBase = settings.landingDefaultTemplate || {};
+      }
+      const buildPublishPayload = (webinarId, organizer) => {
+        // Правило: организатор «КОДЕКС» → тема КОДЕКС (если шаблон не выбран явно)
+        const useKodex = !explicitTpl && String(organizer || '').trim() === 'КОДЕКС';
+        return {
+          webinarId: String(webinarId),
+          eventTime: '10:00',
+          themePreset: useKodex ? 'kodex' : (tplBase.themePreset || 'wood'),
+          dateFontPx: tplBase.dateFontPx || 54,
+          titleFontPx: tplBase.titleFontPx || 46,
+          metaFontPx: tplBase.metaFontPx || 17,
+          buttonFontPx: tplBase.buttonFontPx || 16,
+          footerFontPx: tplBase.footerFontPx || 14,
+          backgroundImage: tplBase.backgroundImage || '',
+          backgroundIntensity: tplBase.backgroundIntensity !== undefined ? tplBase.backgroundIntensity : 100,
+          titleWidthPct: tplBase.titleWidthPct !== undefined ? tplBase.titleWidthPct : 100,
+          customButtons: [],
+          regenerateFileName: false,
+        };
+      };
+
       let created = 0, failed = 0, published = 0, pubFailed = 0, lastErr = '';
       for (let i = 0; i < items.length; i++) {
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Создаём ${i + 1}/${items.length}…`;
@@ -3499,8 +3583,15 @@
           if (!json.ok) throw new Error(json.error || 'Ошибка создания');
           created++;
           if (autoPub) {
-            try { await publishLanding(json.data.id); published++; }
-            catch (pubErr) { pubFailed++; lastErr = pubErr.message; }
+            try {
+              const pubRes = await fetch(`${LANDING_API}?action=publish`, {
+                method: 'POST',
+                body: JSON.stringify(buildPublishPayload(json.data.id, items[i].payload.organizer)),
+              });
+              const pubJson = await pubRes.json();
+              if (!pubJson.ok) throw new Error(pubJson.error || 'Не удалось опубликовать страницу');
+              published++;
+            } catch (pubErr) { pubFailed++; lastErr = pubErr.message; }
           }
         } catch (err) { failed++; lastErr = err.message; }
       }
