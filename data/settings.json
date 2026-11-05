@@ -13,6 +13,78 @@
     "landingBrowserText": "Используйте браузеры Yandex-Браузер \/ Google Chrome \/ Chromium \/ Firefox.",
     "landingTooltipRecording": "Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F.",
     "landingTooltipMaterials": "Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5.",
+    "landingDesignProfiles": {
+        "cmk": {
+            "useThemeActiveBg": true,
+            "activeBgColor": "#33acc2",
+            "activeTextColor": "#ffffff",
+            "inactiveBgColor": "#7a7a7a",
+            "inactiveTextColor": "#ffffff",
+            "inactiveCursor": "default",
+            "borderRadiusPx": 8,
+            "shadowIntensity": 60,
+            "shadowOnInactive": false,
+            "showIcons": true,
+            "buttons": {
+                "link_host": {
+                    "label": "Смотреть онлайн",
+                    "showWhenEmpty": false,
+                    "commentEnabled": false,
+                    "commentOnActive": false,
+                    "commentText": "Ссылка на подключение появится перед началом вебинара."
+                },
+                "link_recording": {
+                    "label": "Скачать запись трансляции",
+                    "showWhenEmpty": true,
+                    "commentEnabled": true,
+                    "commentOnActive": false,
+                    "commentText": "Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F."
+                },
+                "link_materials": {
+                    "label": "Скачать материалы вебинара",
+                    "showWhenEmpty": true,
+                    "commentEnabled": true,
+                    "commentOnActive": false,
+                    "commentText": "Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5."
+                }
+            }
+        },
+        "kodex": {
+            "useThemeActiveBg": false,
+            "activeBgColor": "#40b0bf",
+            "activeTextColor": "#ffffff",
+            "inactiveBgColor": "#fafafa",
+            "inactiveTextColor": "#7a7a7a",
+            "inactiveCursor": "default",
+            "borderRadiusPx": 4,
+            "shadowIntensity": 20,
+            "shadowOnInactive": true,
+            "showIcons": false,
+            "buttons": {
+                "link_host": {
+                    "label": "Смотреть вебинар онлайн",
+                    "showWhenEmpty": false,
+                    "commentEnabled": false,
+                    "commentOnActive": false,
+                    "commentText": "Ссылка на подключение появится перед началом вебинара."
+                },
+                "link_recording": {
+                    "label": "Скачать запись трансляции",
+                    "showWhenEmpty": true,
+                    "commentEnabled": false,
+                    "commentOnActive": false,
+                    "commentText": "Организатор еще не разместил запись трансляции. Обычно это занимает от 2 до 5 дней. Обновите страницу Ctrl+F5."
+                },
+                "link_materials": {
+                    "label": "Скачать материалы вебинара",
+                    "showWhenEmpty": true,
+                    "commentEnabled": false,
+                    "commentOnActive": false,
+                    "commentText": "Организатор еще не разместил материалы вебинара. Обновите страницу Ctrl+F5."
+                }
+            }
+        }
+    },
     "landingFooterText": "© 2026",
     "registryWidth": "1400",
     "quickLinks": [],

@@ -31,6 +31,7 @@
   <div class="toolbar toolbar-secondary">
     <button class="btn btn-ghost" id="bulkAddBtn"><i class="fa-solid fa-table-list"></i> Массовое добавление</button>
     <button class="btn btn-ghost" id="settingsBtn"><i class="fa-solid fa-gear"></i> Настройка панели</button>
+    <button class="btn btn-ghost" id="pageDesignBtn"><i class="fa-solid fa-palette"></i> Дизайн страниц</button>
     <button class="btn btn-ghost" id="crmFieldsBtn"><i class="fa-solid fa-address-card"></i> Поля для CRM</button>
     <button class="btn btn-ghost" id="sendExportBtn"><i class="fa-solid fa-paper-plane"></i> Выгрузить для отправки</button>
     <button class="btn btn-ghost" id="contractGenBtn"><i class="fa-solid fa-file-contract"></i> Генерация для договоров</button>

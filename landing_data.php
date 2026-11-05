@@ -1,27 +1,13 @@
 <?php
 /**
- * Живые данные страницы участника (динамический режим, TEMPLATE_VERSION 3.0.0).
+ * Живые данные страницы участника (динамический режим, TEMPLATE_VERSION 3.1.0).
  *
  *   GET /landing_data.php?f={код}
  *
  * HTML-страница (шелл с токеном) сама запрашивает этот эндпоинт: сразу при
  * открытии, раз в 60 секунд и при возврате во вкладку (visibilitychange).
- *
- * Модель безопасности:
- *   - эндпоинт ПУБЛИЧНЫЙ (участники без авторизации), но отдаёт ТОЛЬКО данные
- *     одной страницы — по случайному коду из её URL. Списка/перечня вебинаров
- *     нет в принципе, спарсить «все вебинары» можно только перебором кодов;
- *   - секрет = сам код файла (случайный, длина настраивается в «Настройка
- *     панели → длина ссылки», 4–32 символа; больше код — выше устойчивость
- *     к перебору);
- *   - неизвестный/удалённый код → единообразный ответ «Мероприятие удалено»
- *     (нельзя даже отличить неверный код от удалённого вебинара);
- *   - заголовки: no-store (никакого кэша) + noindex; CORS-заголовки не
- *     выдаются — браузер запрещает кросс-оригин чтение по умолчанию;
- *   - в ответе нет внутренних id и чужих полей — только контент страницы.
- *
- * Данные читаются из общих JSON-хранилищ при каждом запросе (файлы маленькие),
- * поэтому правки реестра/настроек видны на открытой странице ≤60 секунд.
+ * Обновляет заголовки, требования, поддержку, кнопки (подписи + индивидуальные
+ * POPup-комментарии) и динамические стили кнопок (#lpDynamicBtnStyle).
  */
 
 declare(strict_types=1);
@@ -83,8 +69,8 @@ if ($webinarIndex === null || !is_array($webinar)) ld_removed();
 // --- Контент страницы (те же функции, что у рендеров — форматы совпадают) ---
 $data = array_merge($landing, lp_static_text_fields());
 $buttons = array_merge(
-    lp_build_buttons($webinar),
-    is_array($landing['customButtons'] ?? null) ? $landing['customButtons'] : []
+    lp_build_buttons($webinar, $data),
+    array_map(static function ($button) { $button = (array)$button; $button['isCustom'] = true; return $button; }, is_array($landing['customButtons'] ?? null) ? $landing['customButtons'] : [])
 );
 $isPlainSupport = ((string)($landing['themePreset'] ?? '')) === 'kodex';
 
@@ -98,5 +84,6 @@ ld_out([
         'requirementHtml' => lp_requirement_html($data),
         'supportHtml'     => lp_support_html($data, $isPlainSupport),
         'buttonsHtml'     => lp_buttons_html($buttons, $data),
+        'buttonCss'       => lp_dynamic_button_css($data),
     ],
 ]);

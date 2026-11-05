@@ -1262,6 +1262,7 @@
         try {
           if (!landingMeta.themes.length) await loadLandingMeta();
           applyDefaultTemplate();
+          if (payload.organizer === 'КОДЕКС') { landingThemeKey = 'kodex'; Object.assign(landingFontSizes, KODEX_DESIGN_DEFAULTS.fonts); landingBackgroundIntensity = KODEX_DESIGN_DEFAULTS.intensity; }
           await publishLanding(json.data.id);
           message = 'Вебинар добавлен, страница участника опубликована автоматически';
         } catch (pubErr) {
@@ -1451,7 +1452,7 @@
     saveSettings();
   });
 
-  ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingBrowserText', 'landingFooterText', 'landingTooltipRecording', 'landingTooltipMaterials'].forEach(key => {
+  ['landingPortsText', 'landingSupportText', 'landingSupportPhone', 'landingBrowserText', 'landingFooterText'].forEach(key => {
     const inputId = `#${key}Input`;
     on(inputId, 'change', e => {
       settings[key] = e.target.value.trim();
@@ -1913,8 +1914,6 @@
     $('#landingSupportTextInput').value = settings.landingSupportText || '';
     $('#landingSupportPhoneInput').value = settings.landingSupportPhone || '';
     $('#landingFooterTextInput').value = settings.landingFooterText || '';
-    $('#landingTooltipRecordingInput').value = settings.landingTooltipRecording || '';
-    $('#landingTooltipMaterialsInput').value = settings.landingTooltipMaterials || '';
     $('#quickLinkForm').style.display = 'none';
     renderQuickLinksList();
     $('#mailRecipientForm').style.display = 'none';
@@ -2557,7 +2556,7 @@
       const active = url !== '';
       return `<div class="landing-button-preview-row ${active ? '' : 'is-empty'}">
         <span class="landing-button-preview-dot ${active ? 'on' : ''}"></span>
-        <span class="landing-button-preview-label">${escapeHtml(b.label)}</span>
+        <span class="landing-button-preview-label">${escapeHtml(settings.landingDesignProfiles?.[landingThemeKey === 'kodex' ? 'kodex' : 'cmk']?.buttons?.[b.field]?.label || b.label)}</span>
         <span class="landing-button-preview-src">${active ? escapeHtml(url) : `нет ссылки — заполните «${escapeHtml(b.fromLabel)}»`}</span>
       </div>`;
     }).join('');
@@ -2574,6 +2573,9 @@
       <input data-role="label" placeholder="Название кнопки" value="${escapeHtml(data.label || '')}">
       <input data-role="url" placeholder="https://…" value="${escapeHtml(data.url || '')}">
       <select data-role="icon">${iconOptions}</select>
+      <label><input type="checkbox" data-role="commentEnabled" ${data.commentEnabled ? 'checked' : ''}> Комментарий</label>
+      <label><input type="checkbox" data-role="commentOnActive" ${data.commentOnActive ? 'checked' : ''}> И на активной</label>
+      <input data-role="commentText" placeholder="Текст комментария" value="${escapeHtml(data.commentText || '')}">
       <button type="button" class="icon-btn danger" data-role="remove" title="Удалить кнопку">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -2587,6 +2589,9 @@
       label: row.querySelector('[data-role="label"]').value.trim(),
       url: row.querySelector('[data-role="url"]').value.trim(),
       icon: row.querySelector('[data-role="icon"]').value,
+      commentEnabled: row.querySelector('[data-role="commentEnabled"]').checked,
+      commentOnActive: row.querySelector('[data-role="commentOnActive"]').checked,
+      commentText: row.querySelector('[data-role="commentText"]').value.trim(),
     })).filter(b => b.label);
   }
 
@@ -2721,6 +2726,12 @@
       const res = await fetch(`${LANDING_API}?webinarId=${encodeURIComponent(webinarId)}`);
       const json = await res.json();
       const record = json.ok ? json.data : null;
+      if (!record && $('#f_organizer').value === 'КОДЕКС') {
+        landingThemeKey = 'kodex'; Object.assign(landingFontSizes, KODEX_DESIGN_DEFAULTS.fonts);
+        landingBackgroundIntensity = KODEX_DESIGN_DEFAULTS.intensity;
+        $('#lp_backgroundIntensity').value = landingBackgroundIntensity;
+        $('#lp_backgroundIntensityVal').textContent = `${landingBackgroundIntensity}%`;
+      }
       if (record) {
         $('#lp_eventTime').value = record.eventTime || '10:00';
         landingThemeKey = record.themePreset || landingThemeKey;
@@ -2738,6 +2749,7 @@
 
     renderThemeGrid();
     renderSlidersGrid();
+    renderLandingButtonsPreview();
     landingOverlay.style.display = 'flex';
   }
 
@@ -3732,6 +3744,94 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
+
+  // Общие профили кнопок страниц. Черновик изолирован до нажатия «Сохранить».
+  let pdDraft, pdKey = 'cmk';
+  const pdOverlay = $('#pageDesignOverlay');
+  const pdFields = ['activeBg', 'activeText', 'inactiveBg', 'inactiveText'];
+  const pdClone = obj => JSON.parse(JSON.stringify(obj));
+  async function openPageDesign() {
+    if (!landingMeta.defaultDesignProfiles) await loadLandingMeta();
+    if (!landingMeta.defaultDesignProfiles) { showToast('Не удалось загрузить настройки дизайна', true); return; }
+    pdDraft = pdClone(settings.landingDesignProfiles || landingMeta.defaultDesignProfiles);
+    pdKey = landingThemeKey === 'kodex' && landingOverlay.style.display === 'flex' ? 'kodex' : 'cmk';
+    $('#pdPreviewThemeSelect').innerHTML = landingMeta.themes.filter(t => t.key !== 'kodex').map(t => `<option value="${escapeHtml(t.key)}">${escapeHtml(t.label)}</option>`).join('');
+    pdOverlay.style.display = 'flex'; pdRender();
+  }
+  function pdRender() {
+    const p = pdDraft[pdKey];
+    $$('.pd-tab').forEach(el => el.classList.toggle('active', el.dataset.pdTab === pdKey));
+    $('#pdUseThemeBgRow').style.display = pdKey === 'cmk' ? '' : 'none';
+    $('#pdPreviewThemeWrap').style.display = pdKey === 'cmk' ? '' : 'none';
+    $('#pd_useThemeActiveBg').checked = p.useThemeActiveBg;
+    pdFields.forEach(k => { $('#pd_' + k + 'Picker').value = p[k + 'Color']; $('#pd_' + k + 'Hex').value = p[k + 'Color']; });
+    $('#pd_inactiveCursor').value = p.inactiveCursor;
+    $('#pd_borderRadius').value = p.borderRadiusPx; $('#pd_shadowIntensity').value = p.shadowIntensity;
+    $('#pd_borderRadiusVal').textContent = p.borderRadiusPx + 'px'; $('#pd_shadowIntensityVal').textContent = p.shadowIntensity + '%';
+    $('#pd_shadowOnInactive').checked = p.shadowOnInactive; $('#pd_showIcons').checked = p.showIcons;
+    $('#pdActiveBgField').style.opacity = p.useThemeActiveBg ? '.5' : '1';
+    $('#pdButtonsConfigList').innerHTML = BUTTON_SOURCE_FIELDS.map(b => {
+      const v = p.buttons[b.field];
+      return `<div class="pd-button-config" data-slot="${b.field}"><strong>${escapeHtml(b.fromLabel)}</strong>
+        <label>Название кнопки <input data-prop="label" value="${escapeHtml(v.label)}"></label>
+        <label><input type="checkbox" data-prop="showWhenEmpty" ${v.showWhenEmpty ? 'checked' : ''}> Показывать без ссылки</label>
+        <label><input type="checkbox" data-prop="commentEnabled" ${v.commentEnabled ? 'checked' : ''}> Включить комментарий</label>
+        <label><input type="checkbox" data-prop="commentOnActive" ${v.commentOnActive ? 'checked' : ''}> Показывать и на активной кнопке</label>
+        <label>Текст комментария <textarea data-prop="commentText" rows="2">${escapeHtml(v.commentText)}</textarea></label></div>`;
+    }).join('');
+    pdPreview();
+  }
+  function pdShadow(n, hover) {
+    if (!n) return 'none'; const k = n / 60;
+    const y = Math.max(hover ? 2 : 1, Math.round((hover ? 16 : 12) * k));
+    const blur = Math.max(hover ? 4 : 2, Math.round((hover ? 30 : 24) * k));
+    const alpha = Math.min(hover ? .62 : .55, Math.max(hover ? .12 : .08, Math.round(((hover ? .16 : .10) + .30 * n / 100) * 100) / 100));
+    return `0 ${y}px ${blur}px rgba(0,0,0,${alpha})`;
+  }
+  function pdPreview() {
+    const p = pdDraft[pdKey], theme = landingMeta.themes.find(t => t.key === $('#pdPreviewThemeSelect').value) || landingMeta.themes[0];
+    const bg = pdKey === 'cmk' && p.useThemeActiveBg && theme ? `linear-gradient(135deg,${theme.buttonStart},${theme.buttonEnd})` : p.activeBgColor;
+    const shade = hex => '#' + [1,3,5].map(i => Math.round(parseInt(hex.slice(i,i+2),16)*.85).toString(16).padStart(2,'0')).join('');
+    const hover = pdKey === 'cmk' && p.useThemeActiveBg && theme ? `linear-gradient(135deg,${theme.hoverStart},${theme.hoverEnd})` : shade(p.activeBgColor);
+    $('#pdLivePreviewStyle').textContent = `.pd-stage .pd-preview-button{background:${bg};color:${p.activeTextColor};border-radius:${p.borderRadiusPx}px;box-shadow:${pdShadow(p.shadowIntensity,false)};cursor:pointer}.pd-stage .pd-preview-button:not(.disabled):hover{background:${hover};box-shadow:${pdShadow(p.shadowIntensity,true)};transform:translateY(-2px)}.pd-stage .pd-preview-button.disabled{background:${p.inactiveBgColor};color:${p.inactiveTextColor};box-shadow:${p.shadowOnInactive ? pdShadow(p.shadowIntensity,false) : 'none'};cursor:${p.inactiveCursor}}`;
+    $('#pdPreviewStage').dataset.profile = pdKey;
+    $('#pdPreviewStageBg').style.backgroundImage = pdKey === 'cmk' && theme && theme.baseImage ? `url("${theme.baseImage.replace(/["\\]/g,'')}")` : '';
+    const mode = $('#pdPreviewStateSelect').value;
+    $('#pdPreviewButtons').innerHTML = BUTTON_SOURCE_FIELDS.map((b, i) => {
+      const v = p.buttons[b.field], active = mode === 'active' || (mode === 'mixed' && i === 0);
+      const tip = v.commentEnabled && (!active || v.commentOnActive) && v.commentText ? ` data-tooltip="${escapeHtml(v.commentText)}"` : '';
+      return `<button type="button" class="pd-preview-button ${active ? '' : 'disabled'}"${tip}>${p.showIcons ? '<i class="fa-solid fa-' + (i ? 'download' : 'play') + '"></i> ' : ''}${escapeHtml(v.label || b.label)}</button>`;
+    }).join('');
+  }
+  ['#pageDesignBtn','#openPageDesignFromSettingsBtn','#openPageDesignFromLandingBtn'].forEach(sel => on(sel,'click',openPageDesign));
+  ['#pageDesignClose','#pageDesignCancelBtn'].forEach(sel => on(sel,'click',() => pdOverlay.style.display = 'none'));
+  pdOverlay.addEventListener('click', e => { if (e.target === pdOverlay) pdOverlay.style.display = 'none'; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && pdOverlay.style.display === 'flex') { pdOverlay.style.display = 'none'; e.stopImmediatePropagation(); } }, true);
+  $$('.pd-tab').forEach(el => el.addEventListener('click', () => { pdKey = el.dataset.pdTab; pdRender(); }));
+  on('#pdResetProfileBtn','click',() => { if (confirm('Сбросить настройки выбранного шаблона?')) { pdDraft[pdKey] = pdClone(landingMeta.defaultDesignProfiles[pdKey]); pdRender(); } });
+  pdFields.forEach(k => {
+    on('#pd_' + k + 'Picker','input',e => { pdDraft[pdKey][k+'Color'] = e.target.value; $('#pd_'+k+'Hex').value = e.target.value; pdPreview(); });
+    on('#pd_' + k + 'Hex','input',e => { if (/^#[0-9a-f]{6}$/i.test(e.target.value)) { pdDraft[pdKey][k+'Color'] = e.target.value; $('#pd_'+k+'Picker').value = e.target.value; pdPreview(); } });
+    on('#pd_' + k + 'Hex','change',e => { e.target.value = pdDraft[pdKey][k+'Color']; });
+  });
+  [['useThemeActiveBg','useThemeActiveBg'],['inactiveCursor','inactiveCursor'],['borderRadius','borderRadiusPx'],['shadowIntensity','shadowIntensity'],['shadowOnInactive','shadowOnInactive'],['showIcons','showIcons']].forEach(([id,key]) => {
+    on('#pd_'+id,'input',e => { const el=e.target; pdDraft[pdKey][key] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value; if (el.type === 'range') { $('#pd_'+id+'Val').textContent = el.value + (id === 'borderRadius' ? 'px' : '%'); pdPreview(); } else pdRender(); });
+  });
+  on('#pdButtonsConfigList','input', e => { const el = e.target, row = el.closest('[data-slot]'); if (!row || !el.dataset.prop) return; pdDraft[pdKey].buttons[row.dataset.slot][el.dataset.prop] = el.type === 'checkbox' ? el.checked : el.value; pdPreview(); });
+  ['#pdPreviewThemeSelect','#pdPreviewStateSelect'].forEach(sel => on(sel,'change',pdPreview));
+  $$('[data-pd-inactive-preset]').forEach(el => el.addEventListener('click',() => { [pdDraft[pdKey].inactiveBgColor,pdDraft[pdKey].inactiveTextColor] = el.dataset.pdInactivePreset.split(','); pdRender(); }));
+  $$('[data-pd-radius]').forEach(el => el.addEventListener('click',() => { pdDraft[pdKey].borderRadiusPx = Number(el.dataset.pdRadius); pdRender(); }));
+  $$('[data-pd-shadow]').forEach(el => el.addEventListener('click',() => { pdDraft[pdKey].shadowIntensity = Number(el.dataset.pdShadow); pdRender(); }));
+  on('#pageDesignSaveBtn','click',async () => {
+    const btn = $('#pageDesignSaveBtn'); btn.disabled = true;
+    try {
+      clearTimeout(saveSettingsTimer);
+      const res = await fetch(SETTINGS_API, {method:'POST', body: JSON.stringify({...settings, landingDesignProfiles: pdDraft, syncLandingDesign: true})});
+      const json = await res.json(); if (!res.ok || !json.ok) throw new Error(json.error || 'Ошибка сохранения');
+      settings = {...settings, ...json.data}; pdOverlay.style.display = 'none'; showToast('Дизайн страниц сохранён');
+    } catch (err) { showToast(err.message || 'Не удалось сохранить дизайн', true); }
+    finally { btn.disabled = false; }
+  });
 
   // ---------- Init ----------
 

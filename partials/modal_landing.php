@@ -60,8 +60,11 @@
         <div class="landing-static-inline"><i class="fa-solid fa-lock"></i> Общий текст для всех страниц — редактируется в «⚙ Настройка панели»</div>
       </div>
 
-      <div class="landing-section-title"><i class="fa-solid fa-link"></i> Кнопки на странице</div>
-      <div class="hint" style="margin-bottom:6px">Автоматические — подставляются из ссылок вебинара:</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:4px;">
+        <div class="landing-section-title" style="margin:0;"><i class="fa-solid fa-link"></i> Кнопки на странице</div>
+        <button type="button" class="btn btn-ghost" id="openPageDesignFromLandingBtn" style="padding:5px 10px; font-size:12px;"><i class="fa-solid fa-palette"></i> Дизайн кнопок и комментарии (ЦМК / КОДЕКС)</button>
+      </div>
+      <div class="hint" style="margin-bottom:6px">Автоматические — подставляются из ссылок вебинара (оформление и POPup-комментарии берутся из профиля выбранного шаблона):</div>
       <div class="landing-buttons-preview" id="lp_buttonsPreview"></div>
 
       <div class="accordion" data-accordion="buttons">

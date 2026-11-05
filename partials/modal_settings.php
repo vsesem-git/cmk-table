@@ -97,15 +97,9 @@
           </div>
 
           <div class="settings-group" style="margin-top:12px">
-            <div class="settings-group-title"><i class="fa-solid fa-circle-info"></i> Всплывающие подсказки при отсутствии ссылок</div>
-            <div class="field field-full" style="margin-bottom:8px">
-              <label style="font-size:12px;">Подсказка при отсутствии записи</label>
-              <input type="text" id="landingTooltipRecordingInput" placeholder="Организатор еще не разместил запись трансляции...">
-            </div>
-            <div class="field field-full">
-              <label style="font-size:12px;">Подсказка при отсутствии материалов</label>
-              <input type="text" id="landingTooltipMaterialsInput" placeholder="Организатор еще не разместил материалы вебинара...">
-            </div>
+            <div class="settings-group-title"><i class="fa-solid fa-palette"></i> Дизайн кнопок и комментарии (ЦМК и КОДЕКС)</div>
+            <div class="hint" style="margin-bottom:8px;">Названия кнопок, включение/отключение POPup-комментариев для каждой кнопки, цвета активного/неактивного режима, скругление, тень и курсор с живым превью:</div>
+            <button type="button" class="btn btn-primary" id="openPageDesignFromSettingsBtn"><i class="fa-solid fa-palette"></i> Открыть дизайн страниц (ЦМК / КОДЕКС)</button>
           </div>
         </div>
       </div>
