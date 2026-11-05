@@ -85,7 +85,7 @@
       sendExportFields: ['date', 'link_participant', 'link_host', 'moderator_code'],
       columnOrder: [],
       columnLabels: {},
-      activeYearFilter: '',
+      activeYearFilter: 'current',
       activeFilters: {},
       landingDefaultTemplate: {
         themePreset: 'wood', dateFontPx: 54, titleFontPx: 46, metaFontPx: 17, buttonFontPx: 16, footerFontPx: 14,
@@ -142,7 +142,7 @@
       const json = await res.json();
       const defaults = defaultSettings();
       if (json.ok && json.data) {
-        settings = { ...defaults, ...json.data, colWidths: { ...defaults.colWidths, ...(json.data.colWidths || {}) } };
+        settings = { ...defaults, ...json.data, activeYearFilter: json.data.activeYearFilter || 'current', colWidths: { ...defaults.colWidths, ...(json.data.colWidths || {}) } };
         populateTemplatesDropdowns();
       }
     } catch (e) { /* остаёмся на значениях по умолчанию */ }
@@ -283,7 +283,8 @@
     for (const col in filters) {
       if (col === ignoreCol) continue;
       const set = filters[col];
-      if (!set || set.size === 0) continue;
+      if (!set) continue;
+      if (set.size === 0) return false;
       if (col === 'mailing_list') {
         const tags = String(row.mailing_list || '').split(',').map(t => t.trim()).filter(Boolean);
         if (!tags.some(t => set.has(t))) return false;
@@ -305,14 +306,15 @@
   }
 
   function passesYearFilter(row) {
-    if (!settings.activeYearFilter) return true;
-    return String(row.date || '').slice(0, 4) === settings.activeYearFilter;
+    const year = settings.activeYearFilter || 'current';
+    if (year === 'all') return true;
+    return String(row.date || '').slice(0, 4) === (year === 'current' ? String(new Date().getFullYear()) : year);
   }
 
   function persistFilters() {
     const out = {};
     for (const col in filters) {
-      if (filters[col] && filters[col].size > 0) out[col] = Array.from(filters[col]);
+      if (filters[col]) out[col] = Array.from(filters[col]);
     }
     settings.activeFilters = out;
     saveSettings();
@@ -322,7 +324,7 @@
     filters = {};
     const stored = settings.activeFilters || {};
     for (const col in stored) {
-      if (Array.isArray(stored[col]) && stored[col].length) filters[col] = new Set(stored[col]);
+      if (Array.isArray(stored[col])) filters[col] = new Set(stored[col]);
     }
   }
 
@@ -364,11 +366,11 @@
     const pills = [];
     for (const col in filters) {
       const set = filters[col];
-      if (!set || set.size === 0) continue;
+      if (!set) continue;
       const info = COLUMNS.find(c => c.key === col);
       if (!info) continue;
       const vals = Array.from(set);
-      const shown = vals.slice(0, 1).map(v => formatCell(info, v)).join(', ');
+      const shown = vals.length ? vals.slice(0, 1).map(v => formatCell(info, v)).join(', ') : 'ничего не выбрано';
       const extra = vals.length > 1 ? ` +${vals.length - 1}` : '';
       pills.push(`<span class="filter-pill" data-col="${col}">${info.label}: ${escapeHtml(shown)}${extra}<button data-clear="${col}">×</button></span>`);
     }
@@ -589,7 +591,7 @@
     });
     $$('[data-filter]').forEach(btn => {
       const col = btn.dataset.filter;
-      btn.classList.toggle('active', !!(filters[col] && filters[col].size));
+      btn.classList.toggle('active', !!filters[col]);
     });
   }
 
@@ -627,8 +629,8 @@
     if (openPopoverCol === col) { closePopover(); return; }
     openPopoverCol = col;
     const info = COLUMNS.find(c => c.key === col);
-    const working = rows.filter(r => passesFilters(r, col) && passesSearch(r));
-    const active = filters[col] || new Set();
+    const working = rows.filter(r => passesFilters(r, col) && passesSearch(r) && passesYearFilter(r));
+    const active = filters[col] || null;
     const sortableHere = info.sortable;
     const isDateCol = col === 'date';
     const isTagsCol = info.type === 'tags';
@@ -637,7 +639,7 @@
     if (isDateCol) {
       // Группируем по месяцам: значение чекбокса — "YYYY-MM", раскрывается в реальные даты при применении.
       const monthMap = new Map(); // "YYYY-MM" -> Set of exact dates present in data
-      rows.forEach(r => {
+      rows.filter(passesYearFilter).forEach(r => {
         const d = String(r.date || '');
         if (!d) return;
         const mk = d.slice(0, 7);
@@ -677,14 +679,16 @@
       return formatCell(info, v);
     };
     const isChecked = v => {
-      if (active.size === 0) return true;
+      if (!active) return true;
       if (isDateCol) return Array.from(monthOf.get(v)).some(d => active.has(d));
       return active.has(v);
     };
 
     const pop = $('#filterPop');
     pop.innerHTML = `
+      ${isDateCol ? `<label class="filter-pop-year">Год <select id="popYearSelect">${yearOptionsHtml()}</select></label>` : ''}
       <div class="filter-pop-search"><input type="text" placeholder="Поиск значений…" id="popSearchInput"></div>
+      <label class="filter-opt filter-select-all"><input type="checkbox" id="popSelectAll"> <span>Выделить все</span></label>
       ${sortableHere ? `
       <div class="filter-pop-sort">
         <button data-dir="asc" class="${sortState.col===col && sortState.dir==='asc' ? 'active':''}">↑ По возрастанию</button>
@@ -715,11 +719,29 @@
     pop.style.left = left + 'px';
     pop.style.top = Math.min(rect.bottom + 6, window.innerHeight - 380) + 'px';
 
+    if (isDateCol) {
+      $('#popYearSelect').value = settings.activeYearFilter || 'current';
+      on('#popYearSelect', 'change', e => { setYearFilter(e.target.value); closePopover(); const anchor = document.querySelector('[data-filter="date"]'); if (anchor) openPopover(col, anchor); });
+    }
+    function syncSelectAll() {
+      const boxes = $$('#popList .filter-opt').filter(opt => opt.style.display !== 'none').map(opt => opt.querySelector('input'));
+      const checked = boxes.filter(box => box.checked).length;
+      $('#popSelectAll').checked = boxes.length > 0 && checked === boxes.length;
+      $('#popSelectAll').indeterminate = checked > 0 && checked < boxes.length;
+      $('#popSelectAll').disabled = boxes.length === 0;
+    }
+    on('#popSelectAll', 'change', e => {
+      $$('#popList .filter-opt').filter(opt => opt.style.display !== 'none').forEach(opt => { opt.querySelector('input').checked = e.target.checked; });
+      syncSelectAll();
+    });
+    on('#popList', 'change', syncSelectAll);
+    syncSelectAll();
     on('#popSearchInput', 'input', e => {
       const q = e.target.value.toLowerCase();
       $$('#popList .filter-opt').forEach(opt => {
-        opt.style.display = opt.dataset.val.toLowerCase().includes(q) ? 'flex' : 'none';
+        opt.style.display = (opt.dataset.val + ' ' + opt.textContent).toLowerCase().includes(q) ? 'flex' : 'none';
       });
+      syncSelectAll();
     });
 
     if (sortableHere) {
@@ -743,7 +765,7 @@
         else uncheckedCount++;
       });
       if (uncheckedCount === 0) {
-        filters[col] = new Set();
+        delete filters[col];
       } else if (isDateCol) {
         const expanded = new Set();
         checkedKeys.forEach(mk => monthOf.get(mk).forEach(d => expanded.add(d)));
@@ -1710,17 +1732,22 @@
     } catch (err) { showToast(err.message, true); }
   });
 
-  on('#yearFilterSelect', 'change', e => {
-    settings.activeYearFilter = e.target.value;
-    saveSettings();
+  function setYearFilter(value) {
+    settings.activeYearFilter = value;
+    delete filters.date;
+    persistFilters();
     renderAll();
-  });
+  }
+  on('#yearFilterSelect', 'change', e => setYearFilter(e.target.value));
 
-  function populateYearFilterSelect() {
-    const years = Array.from(new Set(rows.map(r => String(r.date || '').slice(0, 4)).filter(Boolean))).sort();
-    $('#yearFilterSelect').innerHTML = `<option value="">Все года</option>` +
+  function yearOptionsHtml() {
+    const years = Array.from(new Set(rows.map(r => String(r.date || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y)))).sort().reverse();
+    return `<option value="current">Текущий год (${new Date().getFullYear()})</option><option value="all">Все годы</option>` +
       years.map(y => `<option value="${y}">${y}</option>`).join('');
-    $('#yearFilterSelect').value = settings.activeYearFilter || '';
+  }
+  function populateYearFilterSelect() {
+    $('#yearFilterSelect').innerHTML = yearOptionsHtml();
+    $('#yearFilterSelect').value = settings.activeYearFilter || 'current';
   }
 
   // ---------- Авторизация: текущий пользователь, выход, управление аккаунтами ----------
@@ -1932,38 +1959,40 @@
 
   // ---------- JSON import / export ----------
 
-  on('#exportJsonBtn', 'click', () => {
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `webinars-export-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('JSON выгружен');
+  on('#exportJsonBtn', 'click', async () => {
+    try {
+      await saveSettings();
+      const res = await fetch('registry_backup.php', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Ошибка экспорта');
+      const blob = new Blob([JSON.stringify(json.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = `cmk-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
+      URL.revokeObjectURL(url);
+      showToast('Полный JSON-архив выгружен');
+    } catch (err) { showToast('Экспорт не удался: ' + err.message, true); }
   });
 
-
   on('#importFileInput', 'change', async e => {
-    const file = e.target.files[0];
-    e.target.value = '';
+    const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) throw new Error('Файл должен содержать JSON-массив вебинаров');
-      if (!confirm(`Заменить текущие данные (${rows.length} записей) на ${parsed.length} записей из файла?\nТекущие данные будут сохранены в бэкапе на сервере.`)) return;
-
-      const res = await fetch(`${API}?action=import`, { method: 'POST', body: JSON.stringify(parsed) });
+      if (file.size > 50 * 1024 * 1024) throw new Error('Размер файла больше 50 МБ');
+      const parsed = JSON.parse(await file.text());
+      const legacy = Array.isArray(parsed);
+      if (!legacy && (!parsed || parsed.format !== 'cmk-registry-backup' || parsed.version !== 1)) throw new Error('Неизвестный формат JSON-архива');
+      const message = legacy
+        ? `Старый формат: заменить только список мероприятий (${rows.length} записей) на ${parsed.length} записей? Оформление страниц и настройки не будут импортированы.`
+        : 'Восстановить полный архив? Мероприятия, оформление страниц, настройки, справочники и SMTP будут заменены данными из файла. Перед заменой будет создана резервная копия на сервере.';
+      if (!confirm(message)) return;
+      await saveSettings();
+      const res = await fetch(legacy ? `${API}?action=import` : 'registry_backup.php', { method: 'POST', body: JSON.stringify(parsed) });
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error || 'Ошибка импорта');
-      await loadRows();
-      selectedIds.clear();
-      renderAll();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Ошибка импорта');
+      if (!legacy) { showToast('Архив восстановлен, панель перезагружается'); window.location.reload(); return; }
+      await loadRows(); selectedIds.clear(); renderAll();
       showToast(`Импортировано записей: ${json.data.length}`);
-    } catch (err) {
-      showToast('Импорт не удался: ' + err.message, true);
-    }
+    } catch (err) { showToast('Импорт не удался: ' + err.message, true); }
   });
 
   // ---------- Selection bulk bar / xlsx export ----------

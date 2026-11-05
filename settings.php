@@ -48,7 +48,7 @@ function default_settings(): array {
         'sendExportFields' => ['date', 'link_participant', 'link_host', 'moderator_code'],
         'columnOrder' => [],
         'columnLabels' => new stdClass(),
-        'activeYearFilter' => '',
+        'activeYearFilter' => 'current',
         'activeFilters' => new stdClass(),
         'landingDefaultTemplate' => [
             'themePreset' => 'wood',
@@ -180,7 +180,7 @@ try {
                 )) ?: ['date', 'link_participant', 'link_host', 'moderator_code'],
                 'columnOrder'             => array_values(array_map('strval', $input['columnOrder'] ?? [])),
                 'columnLabels'            => $columnLabels,
-                'activeYearFilter'        => trim((string)($input['activeYearFilter'] ?? '')),
+                'activeYearFilter'        => trim((string)($input['activeYearFilter'] ?? 'current')) ?: 'current',
                 'activeFilters'           => $activeFilters,
                 'landingDefaultTemplate'  => settings_clean_default_template($input['landingDefaultTemplate'] ?? []),
             ];
