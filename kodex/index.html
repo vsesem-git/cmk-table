@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <!-- ============================================================
+       Шаблон КОДЕКС — прототип для согласования.
+       Точная копия стилей страницы edu.vsesem.ru/2026/1lzl.html
+       (шрифт Jost, display-2 3rem, кнопки btn-success/btn-white).
+       Фон: 3440x1440.jpg (рядом с файлом) → иначе картинка с сайта.
+       В проект пока НЕ интегрирован.
+       ============================================================ -->
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <title>02 октября 2026 г. «Обращение с твердыми коммунальными отходами: новые требования, нормативы и затраты»</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ---------- reset / base (bootstrap reboot subset) ---------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: auto; min-height: 100vh; overflow-x: hidden; }
+    body {
+      font-family: 'Jost', sans-serif;
+      line-height: 1.5;
+      font-weight: 400;
+      color: #232323;
+      position: relative;
+    }
+    b, strong { font-weight: 700; }
+    a {
+      color: #6592e6;
+      font-weight: 400;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.6s;
+    }
+    h1, h2, h3, h4, h5, h6,
+    .display-1, .display-2, .display-4, .display-5, .display-7,
+    span, p, a {
+      line-height: 1;
+      word-break: break-word;
+      word-wrap: break-word;
+      font-weight: 400;
+    }
+    p { margin-top: 0; margin-bottom: 1rem; }
+    h1, h2 { margin-top: 0; margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 1rem !important; }
+    .mt-3 { margin-top: 1rem !important; }
+
+    /* ---------- mobirise style.css subset ---------- */
+    section {
+      background-color: #ffffff;
+      background-position: 50% 50%;
+      background-repeat: no-repeat;
+      background-size: cover;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .mbr-section-title,
+    .mbr-section-subtitle { line-height: 1.3; }
+    .mbr-text { font-style: normal; line-height: 1.7; }
+    .mbr-white { color: #ffffff; }
+    .align-center { text-align: center; }
+
+    .mbr-fullscreen {
+      display: flex;
+      align-items: center;
+      min-height: 100vh;
+      padding-top: 3rem;
+      padding-bottom: 3rem;
+    }
+
+    /* container / grid (bootstrap5 subset) */
+    .container-fluid {
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 12px;
+      padding-right: 12px;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      margin-left: -12px;
+      margin-right: -12px;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .justify-content-center { justify-content: center; }
+    .col-12, .col-lg-12 {
+      flex: 0 0 auto;
+      width: 100%;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    @media (min-width: 768px) {
+      .container-fluid { padding-left: 32px; padding-right: 32px; }
+    }
+    @media (min-width: 992px) {
+      .row { margin-left: -16px; margin-right: -16px; }
+      .row > [class*=col] { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* buttons row wrapper */
+    .mbr-section-btn {
+      margin-left: -0.6rem;
+      margin-right: -0.6rem;
+      font-size: 0;
+    }
+
+    /* ---------- mbr-additional.css subset ---------- */
+    .btn {
+      font-family: 'Jost', sans-serif;
+      font-size: 1.1rem;
+      line-height: 1.5;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem 1.2rem;
+      margin: 0.6rem 0.6rem;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      white-space: normal;
+      word-break: break-word;
+      text-decoration: none;
+      transition: all 0.2s ease-in-out;
+      cursor: pointer;
+    }
+    .btn-success,
+    .btn-success:active {
+      background-color: #40b0bf !important;
+      border-color: #40b0bf !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-success:hover,
+    .btn-success:focus {
+      color: #ffffff !important;
+      background-color: #2a747e !important;
+      border-color: #2a747e !important;
+      box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-white,
+    .btn-white:active {
+      background-color: #fafafa !important;
+      border-color: #fafafa !important;
+      color: #7a7a7a !important;
+      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-white:hover,
+    .btn-white:focus {
+      color: #4f4f4f !important;
+      background-color: #cfcfcf !important;
+      border-color: #cfcfcf !important;
+      box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    /* display typography */
+    .display-1 { font-family: 'Jost', sans-serif; font-size: 4.6rem; line-height: 1.1; }
+    .display-2 { font-family: 'Jost', sans-serif; font-size: 3rem;   line-height: 1.1; }
+    .display-4 { font-family: 'Jost', sans-serif; font-size: 1.1rem; line-height: 1.5; }
+    .display-5 { font-family: 'Jost', sans-serif; font-size: 2rem;   line-height: 1.5; }
+    .display-7 { font-family: 'Jost', sans-serif; font-size: 1.2rem; line-height: 1.5; }
+
+    /* fluid typography (mobile), as on the reference page */
+    @media (max-width: 992px) {
+      .display-1 { font-size: 3.68rem; }
+    }
+    @media (max-width: 768px) {
+      .display-1 {
+        font-size: calc(2.26rem + (4.6 - 2.26) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.1 * (2.26rem + (4.6 - 2.26) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-2 {
+        font-size: calc(1.7rem + (3 - 1.7) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.3 * (1.7rem + (3 - 1.7) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-4 {
+        font-size: calc(1.0350000000000001rem + (1.1 - 1.0350000000000001) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.4 * (1.0350000000000001rem + (1.1 - 1.0350000000000001) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-5 {
+        font-size: calc(1.35rem + (2 - 1.35) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.4 * (1.35rem + (2 - 1.35) * ((100vw - 20rem) / (48 - 20))));
+      }
+      .display-7 {
+        font-size: calc(1.07rem + (1.2 - 1.07) * ((100vw - 20rem) / (48 - 20)));
+        line-height: calc(1.4 * (1.07rem + (1.2 - 1.07) * ((100vw - 20rem) / (48 - 20))));
+      }
+    }
+
+    /* ---------- фон КОДЕКС ---------- */
+    /* 1-й слой — твоя картинка 3440x1440.jpg (положить рядом с этим файлом);
+       если её нет — просвечивает 2-й слой (фон со страницы-эталона);
+       тёмный цвет — запасной, если не загрузилось ничего. */
+    .kodex-hero {
+      background-color: #241b14;
+      background-image:
+        url("3440x1440.jpg"),
+        url("https://edu.vsesem.ru/2026/assets/images/mbr-1-1920x1276.jpg");
+    }
+  </style>
+</head>
+<body>
+  <section class="kodex-hero mbr-fullscreen mbr-parallax-background" id="header18-r9">
+    <div class="align-center container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-12">
+          <h1 class="mbr-section-title mbr-fonts-style mbr-white mb-3 display-2"><strong>ВЕБИНАР 02</strong><strong>.10.2026 10:00</strong><div><br></div></h1>
+          <h2 class="mbr-section-subtitle mbr-fonts-style mbr-white mb-3 display-2"><strong>«Обращение с твердыми коммунальными отходами:</strong><br><strong> новые требования, нормативы и затраты»</strong><strong>&nbsp;</strong><div><div><div><div><div><div><div><div><div><strong><br></strong></div></div></div></div></div></div></div></div></div></h2>
+          <p class="mbr-text mbr-fonts-style mbr-white display-7">Используйте браузеры Yandex-Браузер / Google Chrome / Chromium / Firefox. Откройте порты TCP:443 UDP:16384 - 32768<br>Техническая поддержка +7 910 154 76 86&nbsp;</p>
+          <div class="mbr-section-btn mt-3"><a class="btn btn-success display-4" href="https://vks.vsesem.ru/rooms/hvi-8td-p4w-puw" target="_blank" rel="noopener">Смотреть вебинар онлайн</a>   <a class="btn btn-white display-4" href="#">Скачать запись трансляции<br></a> <a class="btn btn-white display-4" href="#">Скачать материалы вебинара</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    document.querySelectorAll('a[href="#"]').forEach(function (link) {
+      link.addEventListener('click', function (event) { event.preventDefault(); });
+    });
+  </script>
+</body>
+</html>

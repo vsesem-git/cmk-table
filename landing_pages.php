@@ -1,23 +1,11 @@
 <?php
 /**
  * Страницы для участников («Ссылка для участников»).
- *   GET  ?action=meta          — темы оформления + иконки кнопок
+ *   GET  ?action=meta          — темы оформления + иконки кнопок + эталонные профили дизайна
  *   GET  ?webinarId=N          — черновик оформления страницы для этого вебинара
  *   POST                       — сохранить черновик оформления (тело: {webinarId, ...поля})
  *   POST ?action=publish       — собрать HTML, опубликовать на диск, подставить
  *                                 ссылку в data/webinars.json (поле link_participant)
- *
- * Кнопки на странице и блоки «порты / поддержка» больше не редактируются
- * per-страницы:
- *   - кнопки считаются автоматически из ссылок самого вебинара
- *     (link_host → «Смотреть онлайн», link_recording → «Скачать запись
- *     трансляции», link_materials → «Скачать материалы вебинара»);
- *   - тексты «порты / поддержка» берутся из общих настроек (data/settings.json),
- *     одни и те же для всех страниц.
- *
- * Ничего не хардкодит про домен/путь развёртывания — всё вычисляется из текущего
- * запроса ($_SERVER), поэтому папку webinar-app можно переносить на любой
- * домен/поддомен без правок кода.
  */
 
 declare(strict_types=1);
@@ -34,13 +22,6 @@ const LP_FILE           = __DIR__ . '/data/landing_pages.json';
 const WEBINARS_FILE     = __DIR__ . '/data/webinars.json';
 const SETTINGS_FILE_LP  = __DIR__ . '/data/settings.json';
 
-/** Кнопки, которые появляются на странице, если у вебинара заполнена соответствующая ссылка. */
-const CANONICAL_BUTTONS = [
-    ['field' => 'link_host',       'label' => 'Смотреть онлайн',              'icon' => 'play'],
-    ['field' => 'link_recording',  'label' => 'Скачать запись трансляции',    'icon' => 'video'],
-    ['field' => 'link_materials',  'label' => 'Скачать материалы вебинара',   'icon' => 'file'],
-];
-
 function respond_lp(bool $ok, $data = null, string $error = ''): void {
     echo json_encode(['ok' => $ok, 'data' => $data, 'error' => $error], JSON_UNESCAPED_UNICODE);
     exit;
@@ -48,7 +29,7 @@ function respond_lp(bool $ok, $data = null, string $error = ''): void {
 
 function lp_clamp_int($value, int $min, int $max, int $fallback): int {
     $v = is_numeric($value) ? (int)$value : 0;
-    if ($v <= 0) $v = $fallback;
+    if ($v <= 0 && $min > 0) $v = $fallback;
     return max($min, min($max, $v));
 }
 
@@ -60,7 +41,15 @@ function lp_sanitize_custom_buttons($in): array {
         if ($label === '') continue;
         $icon = trim((string)($b['icon'] ?? 'link'));
         if (!array_key_exists($icon, BUTTON_ICON_CLASSES)) $icon = 'link';
-        $out[] = ['label' => $label, 'url' => trim((string)($b['url'] ?? '')) ?: '#', 'icon' => $icon];
+        $out[] = [
+            'isCustom'        => true,
+            'label'           => $label,
+            'url'             => trim((string)($b['url'] ?? '')) ?: '#',
+            'icon'            => $icon,
+            'commentEnabled'  => !empty($b['commentEnabled']),
+            'commentOnActive' => !empty($b['commentOnActive']),
+            'commentText'     => trim((string)($b['commentText'] ?? '')),
+        ];
     }
     return $out;
 }
@@ -82,81 +71,20 @@ function lp_sanitize_design(array $in): array {
         'buttonFontPx'         => lp_clamp_int($in['buttonFontPx'] ?? null, 12, 40, 16),
         'footerFontPx'         => lp_clamp_int($in['footerFontPx'] ?? null, 10, 30, 14),
         'backgroundImage'      => trim((string)($in['backgroundImage'] ?? '')),
-        'backgroundIntensity'  => lp_clamp_int($in['backgroundIntensity'] ?? null, 0, 100, 100),
+        'backgroundIntensity'  => lp_clamp_int($in['backgroundIntensity'] ?? 100, 0, 100, 100),
         'titleWidthPct'        => lp_clamp_int($in['titleWidthPct'] ?? null, 100, 200, 100),
         'customButtons'        => lp_sanitize_custom_buttons($in['customButtons'] ?? []),
     ];
 }
 
-/** Строит массив кнопок из текущих ссылок вебинара — пустые ссылки просто не создают кнопку. */
-function lp_build_buttons(array $webinar): array {
-    $buttons = [];
-    foreach (CANONICAL_BUTTONS as $def) {
-        $url = trim((string)($webinar[$def['field']] ?? ''));
-        if ($url === '') continue;
-        $buttons[] = ['label' => $def['label'], 'url' => $url, 'icon' => $def['icon']];
-    }
-    return $buttons;
-}
-
-/** Статичные тексты (порты/поддержка/требования к браузеру/футер) — общие для всех страниц (data/settings.json). */
-function lp_static_text_fields(): array {
-    $settings = (array)json_read(SETTINGS_FILE_LP, []);
-    return [
-        'portsText'       => $settings['landingPortsText'] ?? 'Откройте порты TCP:443 UDP:16384 - 32768',
-        'supportText'     => $settings['landingSupportText'] ?? 'Техническая поддержка',
-        'supportPhone'    => $settings['landingSupportPhone'] ?? '+7 910 154 76 86',
-        'supportSchedule' => $settings['landingSupportSchedule'] ?? '(гарантируется только в день вебинара с 10:00 до 15:00)',
-        'browserText'     => $settings['landingBrowserText'] ?? 'Используйте браузеры Yandex Browser / Google Chrome / Firefox последней версии.',
-        'footerText'      => $settings['landingFooterText'] ?? '© 2026 Страница создана по материалам вебинара',
-    ];
-}
-
-/** Безопасно нормализует относительный путь, схлопывая ".." без выхода за пределы. */
-function lp_normalize_segments(string $path): array {
-    $path = str_replace('\\', '/', $path);
-    $path = preg_replace('/[\x00-\x1F\x7F]/u', '', $path) ?? '';
-    $segments = [];
-    foreach (explode('/', $path) as $chunk) {
-        $chunk = trim($chunk);
-        if ($chunk === '' || $chunk === '.') continue;
-        if ($chunk === '..') { if ($segments) array_pop($segments); continue; }
-        $segments[] = $chunk;
-    }
-    return $segments;
-}
-
-function lp_generate_file_id(string $targetDir): string {
+function lp_generate_file_id(string $targetDir, int $length = 6): string {
     $chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     for ($attempt = 0; $attempt < 20; $attempt++) {
         $id = '';
-        for ($i = 0; $i < 6; $i++) $id .= $chars[random_int(0, strlen($chars) - 1)];
+        for ($i = 0; $i < $length; $i++) $id .= $chars[random_int(0, strlen($chars) - 1)];
         if (!is_file(rtrim($targetDir, '/') . '/' . $id . '.html')) return $id;
     }
-    return substr(bin2hex(random_bytes(4)), 0, 6);
-}
-
-/** Находит вебинар по id, возвращает [индекс, строка] или [null, null]. */
-function lp_find_webinar(array $webinars, string $webinarId): array {
-    foreach ($webinars as $i => $w) {
-        if ((string)($w['id'] ?? '') === $webinarId) return [$i, $w];
-    }
-    return [null, null];
-}
-
-/** Вычисляет целевую директорию публикации внутри DOCUMENT_ROOT и проверяет, что не вышли за его пределы. */
-function lp_resolve_output_dir(string $documentRoot, string $outputBase, string $webinarDate): array {
-    $year = date('Y', strtotime($webinarDate) ?: time());
-    $segments = lp_normalize_segments(($outputBase !== '' ? $outputBase . '/' : '') . $year);
-    $relativeOutput = implode('/', $segments);
-    $targetDir = rtrim($documentRoot, '/') . ($relativeOutput !== '' ? '/' . $relativeOutput : '');
-
-    $normalizedTarget = rtrim(str_replace('\\', '/', $targetDir), '/');
-    $normalizedRoot = rtrim(str_replace('\\', '/', $documentRoot), '/');
-    if (strpos($normalizedTarget . '/', $normalizedRoot . '/') !== 0) {
-        return [null, null];
-    }
-    return [$targetDir, $relativeOutput];
+    return substr(bin2hex(random_bytes($length)), 0, $length);
 }
 
 function lp_backup_if_exists(string $fullPath, string $targetDir, string $fileName): void {
@@ -178,13 +106,30 @@ try {
     if ($method === 'GET' && $action === 'meta') {
         $themes = [];
         foreach (THEME_PRESETS as $key => $t) {
-            $themes[] = ['key' => $key, 'label' => $t['label'], 'swatch' => $t['buttonStart'], 'baseImage' => $t['baseImage']];
+            $themes[] = [
+                'key'          => $key,
+                'label'        => $t['label'],
+                'swatch'       => $t['buttonStart'],
+                'buttonStart'  => $t['buttonStart'],
+                'buttonEnd'    => $t['buttonEnd'],
+                'hoverStart'   => $t['hoverStart'],
+                'hoverEnd'     => $t['hoverEnd'],
+                'overlayStart' => $t['overlayStart'],
+                'overlayEnd'   => $t['overlayEnd'],
+                'textColor'    => $t['textColor'],
+                'baseImage'    => $t['baseImage'],
+            ];
         }
         $icons = [];
         foreach (BUTTON_ICON_CLASSES as $key => $info) {
-            $icons[] = ['key' => $key, 'label' => $info['label']];
+            $icons[] = ['key' => $key, 'label' => $info['label'], 'class' => $info['class']];
         }
-        respond_lp(true, ['themes' => $themes, 'icons' => $icons, 'canonicalButtons' => CANONICAL_BUTTONS]);
+        respond_lp(true, [
+            'themes'                => $themes,
+            'icons'                 => $icons,
+            'canonicalButtons'      => CANONICAL_BUTTONS,
+            'defaultDesignProfiles' => lp_default_design_profiles(),
+        ]);
     }
 
     if ($method === 'GET') {
@@ -238,21 +183,24 @@ try {
         $oldFileName = $clean['generatedFileName'];
         $fileName = $oldFileName;
         if ($fileName === '' || $forceNewName || !is_file($targetDir . '/' . $fileName)) {
-            $fileName = lp_generate_file_id($targetDir) . '.html';
+            $linkLength = (int)($settings['landingLinkLength'] ?? 4);
+            if ($linkLength < 4 || $linkLength > 32) {
+                $linkLength = 4;
+            }
+            $fileName = lp_generate_file_id($targetDir, $linkLength) . '.html';
         }
         $fullPath = rtrim($targetDir, '/') . '/' . $fileName;
 
         lp_backup_if_exists($fullPath, $targetDir, $fileName);
 
-        $renderData = array_merge($clean, lp_static_text_fields(), [
-            'buttons' => array_merge(lp_build_buttons($webinar), $clean['customButtons']),
-        ]);
+        $renderData = array_merge($clean, lp_static_text_fields());
+        $renderData['buttons'] = array_merge(lp_build_buttons($webinar, $renderData), $clean['customButtons']);
+
         $html = render_landing_html($webinar, $renderData, $fileName);
         if (@file_put_contents($fullPath, $html, LOCK_EX) === false) {
             respond_lp(false, null, 'Не удалось записать файл: ' . $fullPath);
         }
 
-        // При смене кода старый файл больше никому не нужен — бэкапим и физически удаляем.
         if ($forceNewName && $oldFileName !== '' && $oldFileName !== $fileName) {
             $oldFullPath = rtrim($targetDir, '/') . '/' . $oldFileName;
             if (is_file($oldFullPath)) {

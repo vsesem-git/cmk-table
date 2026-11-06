@@ -8,13 +8,17 @@
       </button>
     </div>
     <div class="modal-body modal-body-stack">
-      <p class="hint" style="margin:0 0 10px">По одной строке на отмеченный вебинар — для создания мероприятия в vtiger.</p>
-      <textarea id="crmFieldsText" class="crm-fields-textarea" readonly rows="12"></textarea>
+      <p class="hint" style="margin:0 0 5px">Дата вебинара Спикер</p>
+      <textarea id="crmFieldsText" class="crm-fields-textarea" readonly rows="6" style="margin-bottom: 12px;"></textarea>
+      
+      <p class="hint" style="margin:0 0 5px">Дата вебинара тема вебинара (в кавычках)</p>
+      <textarea id="crmFieldsText2" class="crm-fields-textarea" readonly rows="6"></textarea>
     </div>
     <div class="modal-footer">
       <span class="hint" style="margin-right:auto" id="crmFieldsCount"></span>
       <button type="button" class="btn btn-ghost" id="crmFieldsCloseBtn">Закрыть</button>
-      <button type="button" class="btn btn-primary" id="crmFieldsCopyBtn"><i class="fa-solid fa-copy"></i> Скопировать</button>
+      <button type="button" class="btn btn-primary" id="crmFieldsCopyBtn"><i class="fa-solid fa-copy"></i> Скопировать 1</button>
+      <button type="button" class="btn btn-primary" id="crmFieldsCopyBtn2"><i class="fa-solid fa-copy"></i> Скопировать 2</button>
     </div>
   </div>
 </div>

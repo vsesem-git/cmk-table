@@ -23,6 +23,9 @@
           <span class="accordion-arrow">▾</span>
         </button>
         <div class="accordion-body">
+          <div class="landing-subtitle"><i class="fa-solid fa-folder-open"></i> Загрузить сохранённый шаблон</div>
+          <select id="lp_templateSelect" style="width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px; margin-bottom: 12px; background: #fff;"></select>
+
           <div class="landing-subtitle"><i class="fa-solid fa-swatchbook"></i> Тема</div>
           <div class="landing-theme-grid" id="lp_themeGrid"></div>
 
@@ -43,7 +46,12 @@
           <div class="landing-subtitle"><i class="fa-solid fa-text-height"></i> Размер шрифтов</div>
           <div class="landing-sliders" id="lp_slidersGrid"></div>
 
-          <button type="button" class="btn btn-ghost" id="lp_saveDefaultBtn" style="margin-top:14px"><i class="fa-solid fa-floppy-disk"></i> Сохранить как шаблон по умолчанию</button>
+          <button type="button" class="btn btn-ghost" id="lp_saveDefaultBtn" style="margin-top:14px; margin-bottom: 8px;"><i class="fa-solid fa-floppy-disk"></i> Сохранить как шаблон по умолчанию</button>
+          
+          <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 12px;">
+            <input type="text" id="lp_newTemplateName" placeholder="Имя нового шаблона" style="flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px;">
+            <button type="button" class="btn btn-ghost" id="lp_saveNamedTemplateBtn"><i class="fa-solid fa-folder-plus"></i> Сохранить этот шаблон</button>
+          </div>
         </div>
       </div>
 
@@ -52,8 +60,11 @@
         <div class="landing-static-inline"><i class="fa-solid fa-lock"></i> Общий текст для всех страниц — редактируется в «⚙ Настройка панели»</div>
       </div>
 
-      <div class="landing-section-title"><i class="fa-solid fa-link"></i> Кнопки на странице</div>
-      <div class="hint" style="margin-bottom:6px">Автоматические — подставляются из ссылок вебинара:</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:4px;">
+        <div class="landing-section-title" style="margin:0;"><i class="fa-solid fa-link"></i> Кнопки на странице</div>
+        <button type="button" class="btn btn-ghost" id="openPageDesignFromLandingBtn" style="padding:5px 10px; font-size:12px;"><i class="fa-solid fa-palette"></i> Дизайн кнопок и комментарии (ЦМК / КОДЕКС)</button>
+      </div>
+      <div class="hint" style="margin-bottom:6px">Автоматические — подставляются из ссылок вебинара (оформление и POPup-комментарии берутся из профиля выбранного шаблона; ссылка на материалы станет доступна с даты вебинара по времени сервера):</div>
       <div class="landing-buttons-preview" id="lp_buttonsPreview"></div>
 
       <div class="accordion" data-accordion="buttons">
@@ -76,7 +87,6 @@
     </div>
     <div class="modal-footer">
       <span class="hint" style="margin-right:auto" id="landingHint"></span>
-      <button type="button" class="btn btn-ghost" id="landingSaveDraftBtn"><i class="fa-regular fa-floppy-disk"></i> Сохранить черновик</button>
       <button type="button" class="btn btn-primary" id="landingPublishBtn"><i class="fa-solid fa-upload"></i> Опубликовать</button>
     </div>
   </div>

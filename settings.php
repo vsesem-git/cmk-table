@@ -30,11 +30,16 @@ function default_settings(): array {
     return [
         'hidden' => [], 'linkAsText' => [], 'colWidths' => new stdClass(), 'tableWidthMode' => 'scroll',
         'landingOutputBase' => '',
+        'landingLinkLength' => 6,
         'landingPortsText' => 'Откройте порты TCP:443 UDP:16384 - 32768',
         'landingSupportText' => 'Техническая поддержка',
         'landingSupportPhone' => '+7 910 154 76 86',
         'landingSupportSchedule' => '(гарантируется только в день вебинара с 10:00 до 15:00)',
-        'landingBrowserText' => 'Используйте браузеры Yandex Browser / Google Chrome / Firefox последней версии.',
+        'landingBrowserText' => 'Используйте браузеры Yandex-Браузер / Google Chrome / Chromium / Firefox.',
+        'landingTooltipRecording' => DEFAULT_COMMENT_RECORDING,
+        'landingTooltipMaterials' => DEFAULT_COMMENT_MATERIALS,
+        'landingDesignProfiles' => lp_default_design_profiles(),
+        'landingTemplates' => new stdClass(),
         'landingFooterText' => '© 2026 Страница создана по материалам вебинара',
         'registryWidth' => '1400',
         'quickLinks' => [],
@@ -43,7 +48,7 @@ function default_settings(): array {
         'sendExportFields' => ['date', 'link_participant', 'link_host', 'moderator_code'],
         'columnOrder' => [],
         'columnLabels' => new stdClass(),
-        'activeYearFilter' => '',
+        'activeYearFilter' => 'current',
         'activeFilters' => new stdClass(),
         'landingDefaultTemplate' => [
             'themePreset' => 'wood',
@@ -60,7 +65,7 @@ function respond_s(bool $ok, $data = null, string $error = ''): void {
 
 function settings_clamp_int($value, int $min, int $max, int $fallback): int {
     $v = is_numeric($value) ? (int)$value : 0;
-    if ($v <= 0) $v = $fallback;
+    if ($v <= 0 && $min > 0) $v = $fallback;
     return max($min, min($max, $v));
 }
 
@@ -68,6 +73,7 @@ function settings_clean_default_template($in): array {
     $in = is_array($in) ? $in : [];
     $theme = trim((string)($in['themePreset'] ?? 'wood'));
     if (!array_key_exists($theme, THEME_PRESETS)) $theme = 'wood';
+    $hasIntensity = array_key_exists('backgroundIntensity', $in) && is_numeric($in['backgroundIntensity']);
     return [
         'themePreset'         => $theme,
         'dateFontPx'          => settings_clamp_int($in['dateFontPx'] ?? null, 12, 72, 54),
@@ -76,7 +82,7 @@ function settings_clean_default_template($in): array {
         'buttonFontPx'        => settings_clamp_int($in['buttonFontPx'] ?? null, 12, 40, 16),
         'footerFontPx'        => settings_clamp_int($in['footerFontPx'] ?? null, 10, 30, 14),
         'backgroundImage'     => trim((string)($in['backgroundImage'] ?? '')),
-        'backgroundIntensity' => settings_clamp_int($in['backgroundIntensity'] ?? null, 0, 100, 100),
+        'backgroundIntensity' => $hasIntensity ? max(0, min(100, (int)$in['backgroundIntensity'])) : 100,
         'titleWidthPct'       => settings_clamp_int($in['titleWidthPct'] ?? null, 100, 200, 100),
     ];
 }
@@ -112,9 +118,17 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     switch ($method) {
-        case 'GET':
-            respond_s(true, json_read(SETTINGS_FILE, default_settings()));
+        case 'GET': {
+            $raw = json_read(SETTINGS_FILE, default_settings());
+            $rawArr = is_array($raw) ? $raw : [];
+            $merged = array_merge(default_settings(), $rawArr);
+            $merged['landingDesignProfiles'] = lp_sanitize_design_profiles(
+                $rawArr['landingDesignProfiles'] ?? null,
+                $rawArr
+            );
+            respond_s(true, $merged);
             break;
+        }
 
         case 'POST': {
             $input = json_decode(file_get_contents('php://input'), true);
@@ -136,33 +150,46 @@ try {
                 if (is_array($vals)) $activeFilters[(string)$col] = array_values(array_map('strval', $vals));
             }
 
+            $oldSettings = (array)json_read(SETTINGS_FILE, []);
+            $designProfiles = lp_sanitize_design_profiles($input['landingDesignProfiles'] ?? ($oldSettings['landingDesignProfiles'] ?? null), $input);
+
             $clean = [
-                'hidden'         => array_values(array_map('strval', $input['hidden'] ?? [])),
-                'linkAsText'     => array_values(array_map('strval', $input['linkAsText'] ?? [])),
-                'colWidths'      => is_array($input['colWidths'] ?? null) ? $input['colWidths'] : [],
-                'tableWidthMode' => in_array($input['tableWidthMode'] ?? '', ['scroll', 'fit'], true) ? $input['tableWidthMode'] : 'scroll',
-                'landingOutputBase' => trim((string)($input['landingOutputBase'] ?? ''), '/'),
-                'landingPortsText' => trim((string)($input['landingPortsText'] ?? '')) ?: 'Откройте порты TCP:443 UDP:16384 - 32768',
-                'landingSupportText' => trim((string)($input['landingSupportText'] ?? '')) ?: 'Техническая поддержка',
-                'landingSupportPhone' => trim((string)($input['landingSupportPhone'] ?? '')) ?: '+7 910 154 76 86',
-                'landingSupportSchedule' => trim((string)($input['landingSupportSchedule'] ?? '')) ?: '(гарантируется только в день вебинара с 10:00 до 15:00)',
-                'landingBrowserText' => trim((string)($input['landingBrowserText'] ?? '')),
-                'landingFooterText' => trim((string)($input['landingFooterText'] ?? '')),
-                'registryWidth'  => $registryWidth,
-                'quickLinks'     => settings_clean_quick_links($input['quickLinks'] ?? []),
-                'quickLinksOrder' => array_values(array_map('strval', $input['quickLinksOrder'] ?? [])),
-                'mailRecipients' => settings_clean_mail_recipients($input['mailRecipients'] ?? []),
-                'sendExportFields' => array_values(array_intersect(
+                'hidden'                  => array_values(array_map('strval', $input['hidden'] ?? [])),
+                'linkAsText'              => array_values(array_map('strval', $input['linkAsText'] ?? [])),
+                'colWidths'               => is_array($input['colWidths'] ?? null) ? $input['colWidths'] : [],
+                'tableWidthMode'          => in_array($input['tableWidthMode'] ?? '', ['scroll', 'fit'], true) ? $input['tableWidthMode'] : 'scroll',
+                'landingOutputBase'       => trim((string)($input['landingOutputBase'] ?? ''), '/'),
+                'landingLinkLength'       => settings_clamp_int($input['landingLinkLength'] ?? null, 4, 32, 6),
+                'landingPortsText'        => trim((string)($input['landingPortsText'] ?? '')) ?: 'Откройте порты TCP:443 UDP:16384 - 32768',
+                'landingSupportText'      => trim((string)($input['landingSupportText'] ?? '')) ?: 'Техническая поддержка',
+                'landingSupportPhone'     => trim((string)($input['landingSupportPhone'] ?? '')) ?: '+7 910 154 76 86',
+                'landingSupportSchedule'  => trim((string)($input['landingSupportSchedule'] ?? '')) ?: '(гарантируется только в день вебинара с 10:00 до 15:00)',
+                'landingBrowserText'      => trim((string)($input['landingBrowserText'] ?? '')),
+                'landingTooltipRecording' => $designProfiles['cmk']['buttons']['link_recording']['commentText'],
+                'landingTooltipMaterials' => $designProfiles['cmk']['buttons']['link_materials']['commentText'],
+                'landingDesignProfiles'   => $designProfiles,
+                'landingTemplates'        => is_array($input['landingTemplates'] ?? null) || is_object($input['landingTemplates'] ?? null) ? $input['landingTemplates'] : new stdClass(),
+                'landingFooterText'       => trim((string)($input['landingFooterText'] ?? '')),
+                'registryWidth'           => $registryWidth,
+                'quickLinks'              => settings_clean_quick_links($input['quickLinks'] ?? []),
+                'quickLinksOrder'         => array_values(array_map('strval', $input['quickLinksOrder'] ?? [])),
+                'mailRecipients'          => settings_clean_mail_recipients($input['mailRecipients'] ?? []),
+                'sendExportFields'        => array_values(array_intersect(
                     array_map('strval', $input['sendExportFields'] ?? []),
                     SEND_EXPORT_FIELD_KEYS
                 )) ?: ['date', 'link_participant', 'link_host', 'moderator_code'],
-                'columnOrder'    => array_values(array_map('strval', $input['columnOrder'] ?? [])),
-                'columnLabels'   => $columnLabels,
-                'activeYearFilter' => trim((string)($input['activeYearFilter'] ?? '')),
-                'activeFilters'  => $activeFilters,
-                'landingDefaultTemplate' => settings_clean_default_template($input['landingDefaultTemplate'] ?? []),
+                'columnOrder'             => array_values(array_map('strval', $input['columnOrder'] ?? [])),
+                'columnLabels'            => $columnLabels,
+                'activeYearFilter'        => trim((string)($input['activeYearFilter'] ?? 'current')) ?: 'current',
+                'activeFilters'           => $activeFilters,
+                'landingDefaultTemplate'  => settings_clean_default_template($input['landingDefaultTemplate'] ?? []),
             ];
+            $oldProfiles = lp_sanitize_design_profiles($oldSettings['landingDesignProfiles'] ?? null, $oldSettings);
             if (!json_write(SETTINGS_FILE, $clean)) respond_s(false, null, 'Не удалось сохранить настройки');
+
+            // Синхронизируем уже опубликованные на диске HTML-страницы с новыми настройками дизайна
+            if ($oldProfiles !== $designProfiles || !empty($input['syncLandingDesign'])) lp_sync_published_html_files(__DIR__ . '/data');
+
             respond_s(true, $clean);
             break;
         }
@@ -175,4 +202,3 @@ try {
     http_response_code(500);
     respond_s(false, null, 'Ошибка сервера: ' . $e->getMessage());
 }
-

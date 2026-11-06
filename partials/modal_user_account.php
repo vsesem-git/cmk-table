@@ -78,10 +78,10 @@
       <div class="settings-group">
         <div class="settings-group-title"><i class="fa-solid fa-database"></i> Импорт / экспорт данных</div>
         <div class="landing-img-actions">
-          <label class="btn btn-ghost landing-upload-btn"><i class="fa-solid fa-file-import"></i> Импорт JSON<input type="file" id="importFileInput" accept=".json" style="display:none"></label>
-          <button type="button" class="btn btn-ghost" id="exportJsonBtn"><i class="fa-solid fa-file-export"></i> Экспорт JSON</button>
+          <label class="btn btn-ghost landing-upload-btn"><i class="fa-solid fa-file-import"></i> Импорт архива JSON<input type="file" id="importFileInput" accept=".json" style="display:none"></label>
+          <button type="button" class="btn btn-ghost" id="exportJsonBtn"><i class="fa-solid fa-file-export"></i> Экспорт полного архива JSON</button>
         </div>
-        <div class="hint" style="padding:6px 4px 0">Импорт полностью заменяет текущие данные (перед заменой делается бэкап на сервере).</div>
+        <div class="hint" style="padding:6px 4px 0">Архив содержит мероприятия, страницы, настройки, справочники, шаблоны и SMTP (включая пароль). Храните файл в безопасном месте. Учётные записи и сессии не переносятся.<br>Импорт заменяет данные и создаёт резервную копию на сервере. Старые JSON-массивы мероприятий также поддерживаются.<br>Изображения, документы и опубликованные HTML-файлы в JSON не входят: при переносе на другой сервер скопируйте их отдельно; ссылки могут требовать обновления.</div>
       </div>
 
     </div>
