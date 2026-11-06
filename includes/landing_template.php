@@ -413,8 +413,19 @@ function lp_dynamic_button_css(array $landing): string {
 CSS;
 }
 
+/** Материалы доступны с полуночи даты вебинара по часовому поясу PHP-сервера.
+ * Некорректную или отсутствующую дату считаем закрытой, чтобы не раскрыть ссылку раньше времени.
+ * $today можно передать для детерминированного тестирования.
+ */
+function lp_materials_date_available(string $eventDate, ?string $today = null): bool {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $eventDate)) return false;
+    [$year, $month, $day] = array_map('intval', explode('-', $eventDate));
+    if (!checkdate($month, $day, $year)) return false;
+    return $eventDate <= ($today ?? date('Y-m-d'));
+}
+
 /** Строит массив автоматических кнопок из ссылок вебинара с учётом профиля дизайна (ЦМК / КОДЕКС). */
-function lp_build_buttons(array $webinar, array $landing = []): array {
+function lp_build_buttons(array $webinar, array $landing = [], ?string $today = null): array {
     $profile = lp_resolve_design_profile($landing);
     $buttons = [];
     foreach (CANONICAL_BUTTONS as $def) {
@@ -432,7 +443,11 @@ function lp_build_buttons(array $webinar, array $landing = []): array {
                 continue;
             }
         }
+        $dateLocked = $field === 'link_materials' && $url !== '#' && !lp_materials_date_available(trim((string)($webinar['date'] ?? '')), $today);
+        if ($dateLocked) $url = '#'; // Не выдаём исходную ссылку ни в HTML, ни в публичном API.
         $buttons[] = [
+            'dateLocked' => $dateLocked,
+            'availableDate' => $dateLocked ? trim((string)($webinar['date'] ?? '')) : '',
             'slot'  => $field,
             'label' => $label,
             'url'   => $url,
@@ -494,7 +509,14 @@ function lp_buttons_html($buttons, array $landing): string {
         if ($slot !== '' && isset($profile['buttons'][$slot])) {
             $cfg = $profile['buttons'][$slot];
             if (!empty($cfg['commentEnabled']) && ($isDisabled || !empty($cfg['commentOnActive']))) {
-                $tooltipText = trim((string)($cfg['commentText'] ?? ''));
+                if (!empty($btn['dateLocked'])) {
+                    $date = (string)($btn['availableDate'] ?? '');
+                    $tooltipText = lp_materials_date_available($date, '9999-12-31')
+                        ? 'Материалы будут доступны с ' . landing_format_date_long($date)
+                        : 'Материалы пока недоступны';
+                } else {
+                    $tooltipText = trim((string)($cfg['commentText'] ?? ''));
+                }
             }
         } elseif (!empty($btn['commentEnabled']) && ($isDisabled || !empty($btn['commentOnActive']))) {
             $tooltipText = trim((string)($btn['commentText'] ?? ''));
@@ -502,10 +524,11 @@ function lp_buttons_html($buttons, array $landing): string {
 
         $titleAttr = $tooltipText !== '' ? ' data-tooltip="' . landing_escape($tooltipText) . '"' : '';
         $extraClass = $isDisabled ? ' btn-disabled' : '';
+        $disabledAttr = $isDisabled ? ' aria-disabled="true"' : '';
         $rel = (!$isDisabled && str_starts_with($url, 'http')) ? ' rel="noopener noreferrer" target="_blank"' : '';
         $iconHtml = $showIcons ? '<i class="' . landing_escape($iconClass) . '" aria-hidden="true"></i>' : '';
 
-        $html .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . '>'
+        $html .= '<a class="btn js-download' . $extraClass . '" href="' . landing_escape($url) . '"' . $rel . $titleAttr . $disabledAttr . '>'
             . $iconHtml . landing_escape($label) . '</a>';
     }
     return $html;

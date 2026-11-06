@@ -64,7 +64,7 @@
         <div class="landing-section-title" style="margin:0;"><i class="fa-solid fa-link"></i> Кнопки на странице</div>
         <button type="button" class="btn btn-ghost" id="openPageDesignFromLandingBtn" style="padding:5px 10px; font-size:12px;"><i class="fa-solid fa-palette"></i> Дизайн кнопок и комментарии (ЦМК / КОДЕКС)</button>
       </div>
-      <div class="hint" style="margin-bottom:6px">Автоматические — подставляются из ссылок вебинара (оформление и POPup-комментарии берутся из профиля выбранного шаблона):</div>
+      <div class="hint" style="margin-bottom:6px">Автоматические — подставляются из ссылок вебинара (оформление и POPup-комментарии берутся из профиля выбранного шаблона; ссылка на материалы станет доступна с даты вебинара по времени сервера):</div>
       <div class="landing-buttons-preview" id="lp_buttonsPreview"></div>
 
       <div class="accordion" data-accordion="buttons">
